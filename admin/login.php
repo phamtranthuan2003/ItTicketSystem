@@ -1,0 +1,61 @@
+<?php
+declare(strict_types=1);
+require_once dirname(__DIR__) . '/includes/functions.php';
+
+if (!empty($_SESSION['admin_id'])) redirect('/ticket/admin/');
+$error = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    verify_csrf();
+    $username = trim((string)($_POST['username'] ?? ''));
+    $password = (string)($_POST['password'] ?? '');
+    $loginKey = hash_hmac('sha256', strtolower($username) . '|' . client_ip_hash(), APP_KEY);
+    try {
+        $pdo = db();
+        $pdo->beginTransaction();
+        $pdo->prepare('INSERT IGNORE INTO auth_attempts (login_key, failed_attempts, locked_until) VALUES (?, 0, NULL)')->execute([$loginKey]);
+        $attemptStmt = $pdo->prepare('SELECT failed_attempts, locked_until FROM auth_attempts WHERE login_key = ? FOR UPDATE');
+        $attemptStmt->execute([$loginKey]);
+        $attempt = $attemptStmt->fetch();
+        $locked = !empty($attempt['locked_until']) && strtotime($attempt['locked_until']) > time();
+        $userStmt = $pdo->prepare('SELECT id, username, password_hash, role FROM admins WHERE username = ? AND is_active = 1 LIMIT 1');
+        $userStmt->execute([$username]);
+        $user = $userStmt->fetch();
+
+        if ($locked || !$user || !password_verify($password, $user['password_hash'])) {
+            $failedCount = $locked ? (int)$attempt['failed_attempts'] : (int)$attempt['failed_attempts'] + 1;
+            $lockedUntil = $locked
+                ? $attempt['locked_until']
+                : ($failedCount >= 5 ? date('Y-m-d H:i:s', time() + 900) : null);
+            $pdo->prepare('UPDATE auth_attempts SET failed_attempts = ?, locked_until = ? WHERE login_key = ?')->execute([$failedCount, $lockedUntil, $loginKey]);
+            $pdo->commit();
+            $error = $locked ? 'Tài khoản đang bị khóa tạm thời. Vui lòng thử lại sau 15 phút.' : 'Tên đăng nhập hoặc mật khẩu không đúng.';
+        } else {
+            $pdo->prepare('DELETE FROM auth_attempts WHERE login_key = ?')->execute([$loginKey]);
+            $pdo->prepare('UPDATE admins SET last_login_at = NOW() WHERE id = ?')->execute([$user['id']]);
+            $cursor = (int)$pdo->query('SELECT COALESCE(MAX(id), 0) FROM tickets')->fetchColumn();
+            $pdo->commit();
+            session_regenerate_id(true);
+            $_SESSION['admin_id'] = (int)$user['id'];
+            $_SESSION['admin_username'] = $user['username'];
+            $_SESSION['admin_role'] = $user['role'];
+            $_SESSION['ticket_cursor'] = $cursor;
+            $_SESSION['new_ticket_count'] = 0;
+            redirect('/ticket/admin/');
+        }
+    } catch (Throwable $exception) {
+        if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
+        error_log('Admin login error: ' . $exception->getMessage());
+        $error = 'Không thể đăng nhập lúc này. Vui lòng thử lại sau.';
+    }
+}
+
+page_header('Đăng nhập quản trị');
+if ($error !== '') echo '<div class="alert error">' . e($error) . '</div>';
+?>
+<form method="post" class="card form-grid compact login-form">
+    <?= csrf_field() ?>
+    <label class="full">Tên đăng nhập<input name="username" required autocomplete="username" maxlength="100"></label>
+    <label class="full">Mật khẩu<input type="password" name="password" required autocomplete="current-password"></label>
+    <div class="full"><button type="submit">Đăng nhập</button></div>
+</form>
+<?php page_footer(); ?>
