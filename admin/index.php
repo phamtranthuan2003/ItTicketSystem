@@ -14,8 +14,44 @@ foreach ($pdo->query('SELECT status, COUNT(*) AS total FROM tickets GROUP BY sta
     if (isset($counts[$row['status']])) $counts[$row['status']] = (int)$row['total'];
 }
 
-$byType = $pdo->query("SELECT type, COUNT(*) AS total FROM tickets WHERE type != 'accounting' GROUP BY type ORDER BY total DESC")->fetchAll();
+$byTypeCounts = array_fill_keys(array_keys(ticket_types()), 0);
+foreach ($pdo->query('SELECT type, COUNT(*) AS total FROM tickets GROUP BY type') as $row) {
+    if (array_key_exists($row['type'], $byTypeCounts)) {
+        $byTypeCounts[$row['type']] = (int)$row['total'];
+    }
+}
+$totalByType = array_sum($byTypeCounts);
+
+$priorityCounts = ['high' => 0, 'medium' => 0, 'low' => 0];
+foreach ($pdo->query('SELECT priority, COUNT(*) AS total FROM tickets GROUP BY priority') as $row) {
+    if (isset($priorityCounts[$row['priority']])) {
+        $priorityCounts[$row['priority']] = (int)$row['total'];
+    }
+}
+
+$byDepartmentCounts = array_fill_keys(ticket_departments(), 0);
+foreach ($pdo->query('SELECT department, COUNT(*) AS total FROM tickets GROUP BY department') as $row) {
+    if (array_key_exists($row['department'], $byDepartmentCounts)) {
+        $byDepartmentCounts[$row['department']] = (int)$row['total'];
+    }
+}
+$totalByDepartment = array_sum($byDepartmentCounts);
+
 $firstMonth = new DateTimeImmutable('first day of this month 00:00:00');
+$nextMonth = $firstMonth->modify('+1 month');
+$monthEnd = $nextMonth->modify('-1 day');
+$monthStatsStmt = $pdo->prepare(
+    "SELECT COUNT(*) AS total, SUM(status = 'completed') AS completed
+     FROM tickets
+     WHERE created_at >= ? AND created_at < ?"
+);
+$monthStatsStmt->execute([$firstMonth->format('Y-m-d H:i:s'), $nextMonth->format('Y-m-d H:i:s')]);
+$monthStats = $monthStatsStmt->fetch();
+$monthTotal = (int)$monthStats['total'];
+$monthCompleted = (int)$monthStats['completed'];
+$monthRemaining = max(0, $monthTotal - $monthCompleted);
+$monthCompletionPercent = $monthTotal > 0 ? (int)round($monthCompleted * 100 / $monthTotal) : 0;
+
 $chartStart = $firstMonth->modify('-11 months');
 $monthlyStmt = $pdo->prepare(
     "SELECT DATE_FORMAT(created_at, '%Y-%m') AS month_key,
@@ -42,6 +78,8 @@ for ($offset = 0; $offset < 12; $offset++) {
     $values = $monthlyRows[$key] ?? ['total' => 0, 'completed' => 0];
     $monthly[] = [
         'label' => $month->format('m/Y'),
+        'from' => $month->format('Y-m-01'),
+        'to' => $month->format('Y-m-t'),
         'total' => $values['total'],
         'completed' => $values['completed'],
     ];
@@ -51,40 +89,136 @@ $maxMonthly = max(1, $maxMonthly);
 page_header('Tổng quan', true);
 ?>
 <section class="stats">
-    <div class="stat"><span>Tổng ticket</span><strong><?= $counts['all'] ?></strong></div>
-    <div class="stat"><span>Mới chưa xử lý</span><strong><?= $counts['new'] ?></strong></div>
-    <div class="stat"><span>Đang xử lý</span><strong><?= $counts['in_progress'] ?></strong></div>
-    <div class="stat"><span>Hoàn thành</span><strong><?= $counts['completed'] ?></strong></div>
-    <div class="stat"><span>Từ chối</span><strong><?= $counts['rejected'] ?></strong></div>
+    <a class="stat" href="<?= e(app_path('/admin/tickets.php')) ?>" title="Xem tất cả ticket">
+        <span>Tổng ticket</span>
+        <strong><?= $counts['all'] ?></strong>
+    </a>
+    <a class="stat" href="<?= e(app_path('/admin/tickets.php?status=new')) ?>" title="Xem ticket Mới chưa xử lý">
+        <span>Mới chưa xử lý</span>
+        <strong><?= $counts['new'] ?></strong>
+    </a>
+    <a class="stat" href="<?= e(app_path('/admin/tickets.php?status=in_progress')) ?>" title="Xem ticket Đang xử lý">
+        <span>Đang xử lý</span>
+        <strong><?= $counts['in_progress'] ?></strong>
+    </a>
+    <a class="stat" href="<?= e(app_path('/admin/tickets.php?status=completed')) ?>" title="Xem ticket Đã hoàn thành">
+        <span>Hoàn thành</span>
+        <strong><?= $counts['completed'] ?></strong>
+    </a>
+    <a class="stat" href="<?= e(app_path('/admin/tickets.php?status=rejected')) ?>" title="Xem ticket Từ chối">
+        <span>Từ chối</span>
+        <strong><?= $counts['rejected'] ?></strong>
+    </a>
 </section>
-<section class="card">
-    <div class="section-title">
-        <h2>Thống kê ticket theo tháng</h2>
-        <span class="chart-period">12 tháng gần nhất</span>
-    </div>
-    <div class="chart-legend"><span><i class="legend-total"></i>Tổng ticket</span><span><i class="legend-completed"></i>Hoàn thành</span></div>
-    <div class="chart-scroll">
-        <div class="monthly-chart" role="img" aria-label="Biểu đồ số ticket được tạo và hoàn thành theo tháng trong 12 tháng gần nhất">
-            <?php foreach ($monthly as $month): ?>
-                <div class="month-column" title="<?= e($month['label']) ?>: <?= $month['total'] ?> ticket, <?= $month['completed'] ?> hoàn thành">
-                    <div class="month-bars">
-                        <div class="month-bar total" style="height:<?= (int)round($month['total'] * 100 / $maxMonthly) ?>%"><span><?= $month['total'] ?></span></div>
-                        <div class="month-bar completed" style="height:<?= (int)round($month['completed'] * 100 / $maxMonthly) ?>%"><span><?= $month['completed'] ?></span></div>
+
+<section class="dashboard-charts">
+    <div class="card dashboard-monthly-card">
+        <div class="section-title">
+            <h2>Thống kê ticket theo tháng</h2>
+            <span class="chart-period">12 tháng gần nhất</span>
+        </div>
+        <div class="chart-legend">
+            <a href="<?= e(app_path('/admin/tickets.php?from=' . $chartStart->format('Y-m-01') . '&to=' . $firstMonth->format('Y-m-t'))) ?>" title="Xem tất cả ticket trong 12 tháng qua">
+                <i class="legend-total"></i>Tổng ticket
+            </a>
+            <a href="<?= e(app_path('/admin/tickets.php?status=completed&from=' . $chartStart->format('Y-m-01') . '&to=' . $firstMonth->format('Y-m-t'))) ?>" title="Xem ticket hoàn thành trong 12 tháng qua">
+                <i class="legend-completed"></i>Hoàn thành
+            </a>
+        </div>
+        <p class="chart-hint">Chọn cột để xem danh sách ticket của tháng.</p>
+        <div class="chart-scroll">
+            <div class="monthly-chart" role="img" aria-label="Biểu đồ số ticket được tạo và hoàn thành theo tháng trong 12 tháng gần nhất">
+                <?php foreach ($monthly as $month): ?>
+                    <div class="month-column" title="Tháng <?= e($month['label']) ?>: <?= $month['total'] ?> ticket, <?= $month['completed'] ?> hoàn thành">
+                        <div class="month-bars">
+                            <a class="month-bar total" href="<?= e(app_path('/admin/tickets.php?from=' . $month['from'] . '&to=' . $month['to'])) ?>" style="height:<?= (int)round($month['total'] * 100 / $maxMonthly) ?>%" title="Tháng <?= e($month['label']) ?>: <?= $month['total'] ?> ticket (bấm để xem)">
+                                <span><?= $month['total'] ?></span>
+                            </a>
+                            <a class="month-bar completed" href="<?= e(app_path('/admin/tickets.php?status=completed&from=' . $month['from'] . '&to=' . $month['to'])) ?>" style="height:<?= (int)round($month['completed'] * 100 / $maxMonthly) ?>%" title="Tháng <?= e($month['label']) ?>: <?= $month['completed'] ?> hoàn thành (bấm để xem)">
+                                <span><?= $month['completed'] ?></span>
+                            </a>
+                        </div>
+                        <a class="month-label" href="<?= e(app_path('/admin/tickets.php?from=' . $month['from'] . '&to=' . $month['to'])) ?>" title="Lọc ticket tháng <?= e($month['label']) ?>"><?= e($month['label']) ?></a>
                     </div>
-                    <span class="month-label"><?= e($month['label']) ?></span>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+    <div class="card dashboard-month-pie-card">
+        <div class="section-title">
+            <h2>Kết quả tháng này</h2>
+            <span class="chart-period"><?= e($firstMonth->format('m/Y')) ?></span>
+        </div>
+        <p class="chart-hint">Tình trạng của các ticket được tạo trong tháng.</p>
+        <div class="pie-card-content">
+            <div class="pie-chart-wrap">
+                <svg class="pie-chart-svg" viewBox="0 0 120 120" role="img" aria-label="Tháng này có <?= $monthTotal ?> ticket, <?= $monthCompleted ?> đã hoàn thành và <?= $monthRemaining ?> chưa hoàn thành">
+                    <circle class="pie-circle-bg" cx="60" cy="60" r="48" pathLength="100"></circle>
+                    <circle class="pie-circle-progress" cx="60" cy="60" r="48" pathLength="100" stroke-dasharray="<?= $monthCompletionPercent ?> 100"></circle>
+                </svg>
+                <div class="pie-center-text">
+                    <strong><?= $monthTotal ?></strong>
+                    <small>TỔNG TICKET</small>
+                    <span><?= $monthCompletionPercent ?>% hoàn thành</span>
                 </div>
-            <?php endforeach; ?>
+            </div>
+            <div class="pie-legend">
+                <a class="pie-legend-item" href="<?= e(app_path('/admin/tickets.php?status=completed&from=' . $firstMonth->format('Y-m-01') . '&to=' . $monthEnd->format('Y-m-d'))) ?>">
+                    <span class="pie-legend-left"><i class="legend-completed"></i>Đã hoàn thành</span>
+                    <strong><?= $monthCompleted ?></strong>
+                </a>
+                <div class="pie-legend-item">
+                    <span class="pie-legend-left"><i class="legend-remaining"></i>Chưa hoàn thành</span>
+                    <strong><?= $monthRemaining ?></strong>
+                </div>
+            </div>
         </div>
     </div>
 </section>
+
 <section class="card">
-    <h2>Thống kê theo loại yêu cầu</h2>
-    <?php if (!$byType): ?><p>Chưa có dữ liệu.</p><?php else: ?>
-        <div class="type-stats"><?php foreach ($byType as $row): ?>
-            <div class="type-stat"><span><?= e(ticket_type_label($row['type'])) ?></span><strong><?= (int)$row['total'] ?></strong>
-                <div class="bar"><span style="width:<?= $counts['all'] ? (int)round((int)$row['total'] * 100 / $counts['all']) : 0 ?>%"></span></div>
-            </div>
+    <h2>Thống kê theo mức độ ưu tiên</h2>
+    <div class="priority-stats">
+        <a class="priority-stat priority-high" href="<?= e(app_path('/admin/tickets.php?priority=high')) ?>" title="Xem các ticket mức Cao (P1)">
+            <span>P1 — Cao</span>
+            <strong><?= $priorityCounts['high'] ?></strong>
+            <small>SLA xử lý: 2 tiếng</small>
+        </a>
+        <a class="priority-stat priority-medium" href="<?= e(app_path('/admin/tickets.php?priority=medium')) ?>" title="Xem các ticket mức Trung bình (P2)">
+            <span>P2 — Trung bình</span>
+            <strong><?= $priorityCounts['medium'] ?></strong>
+            <small>SLA xử lý: 4 tiếng</small>
+        </a>
+        <a class="priority-stat priority-low" href="<?= e(app_path('/admin/tickets.php?priority=low')) ?>" title="Xem các ticket mức Thấp (P3)">
+            <span>P3 — Thấp</span>
+            <strong><?= $priorityCounts['low'] ?></strong>
+            <small>SLA xử lý: 6 tiếng</small>
+        </a>
+    </div>
+</section>
+
+<section class="dashboard-breakdowns">
+    <div class="card">
+        <h2>Thống kê theo loại yêu cầu</h2>
+        <div class="type-stats"><?php foreach ($byTypeCounts as $type => $total): ?>
+                <a class="type-stat" href="<?= e(app_path('/admin/tickets.php?type=' . urlencode($type))) ?>" title="Xem danh sách ticket loại <?= e(ticket_type_label($type)) ?>">
+                    <span><?= e(ticket_type_label($type)) ?></span>
+                    <strong><?= $total ?></strong>
+                    <div class="bar"><span style="width:<?= $totalByType ? (int)round($total * 100 / $totalByType) : 0 ?>%"></span></div>
+                </a>
+            <?php endforeach; ?></div>
+    </div>
+    <div class="card">
+        <h2>Thống kê theo phòng ban</h2>
+        <div class="dept-stats"><?php foreach ($byDepartmentCounts as $department => $total): ?>
+            <a class="dept-stat" href="<?= e(app_path('/admin/tickets.php?department=' . urlencode($department))) ?>" title="Xem danh sách ticket của <?= e($department) ?>">
+                <span class="dept-stat-header">
+                    <span><?= e($department) ?></span>
+                    <strong><?= $total ?></strong>
+                </span>
+                <span class="dept-bar"><span style="width:<?= $totalByDepartment ? (int)round($total * 100 / $totalByDepartment) : 0 ?>%"></span></span>
+            </a>
         <?php endforeach; ?></div>
-    <?php endif; ?>
+    </div>
 </section>
 <?php page_footer(); ?>

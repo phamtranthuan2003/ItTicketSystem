@@ -216,7 +216,7 @@ function page_header(string $title, bool $isAdmin = false): void
     echo '<title>' . $titleEscaped . ' | Everland Group</title>';
     echo '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
     echo '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap">';
-    echo '<link rel="stylesheet" href="' . e(app_path('/assets/css/style.css?v=everland20261106-8')) . '"></head><body class="' . e($pageClass) . '" data-app-base="' . e(APP_BASE_PATH) . '">';
+    echo '<link rel="stylesheet" href="' . e(app_path('/assets/css/style.css?v=everland20261106-9')) . '"></head><body class="' . e($pageClass) . '" data-app-base="' . e(APP_BASE_PATH) . '">';
     echo '<header class="topbar' . ($isAdmin ? ' admin-topbar' : '') . '"><a class="brand" href="' . e(app_path('/')) . '" aria-label="Everland Group — Trang chủ">'
         . '<span class="brand-mark"><img src="' . e(app_path('/assets/img/everland-1668155348.png')) . '" alt=""></span>'
         . '<span class="brand-copy"><strong>EVERLAND GROUP</strong><small>HỆ THỐNG HỖ TRỢ NỘI BỘ</small></span></a>';

@@ -74,6 +74,9 @@ show_flash();
         <div class="filter-actions">
             <button type="submit">Lọc</button>
             <a class="button secondary" href="<?= e(app_path('/admin/export.php')) ?>?<?= e(http_build_query($filters)) ?>">Xuất CSV</a>
+            <?php if (array_filter($filters)): ?>
+                <a class="button secondary" href="<?= e(app_path('/admin/tickets.php')) ?>" title="Xóa bộ lọc để xem toàn bộ ticket">Đặt lại</a>
+            <?php endif; ?>
         </div>
     </form>
 </section>
