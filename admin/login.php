@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap">
-    <link rel="stylesheet" href="<?= e(app_path('/assets/css/style.css?v=everland20261106-9')) ?>">
+    <link rel="stylesheet" href="<?= e(app_path('/assets/css/style.css?v=everland20261106-10')) ?>">
 </head>
 <body class="admin-login-page">
     <main class="admin-login-main">

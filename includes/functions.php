@@ -52,6 +52,7 @@ function ticket_types(): array
         'printer' => 'Máy in',
         'network' => 'Mạng Internet',
         'meeting_room' => 'Trực phòng họp',
+        'other' => 'Khác',
     ];
 }
 
@@ -135,6 +136,53 @@ function ticket_sla_minutes(string $priority): array
         'medium' => ['response' => 30, 'resolution' => 240],
         'low' => ['response' => 60, 'resolution' => 360],
     ][$priority] ?? throw new InvalidArgumentException('Invalid ticket priority.');
+}
+
+function add_business_minutes(DateTimeInterface $start, int $minutes): DateTimeImmutable
+{
+    if ($minutes < 0) {
+        throw new InvalidArgumentException('Business minutes cannot be negative.');
+    }
+
+    $current = DateTimeImmutable::createFromInterface($start);
+    $remainingSeconds = $minutes * 60;
+    if ($remainingSeconds === 0) {
+        return $current;
+    }
+
+    while (true) {
+        $dayOfWeek = (int)$current->format('N');
+        if ($dayOfWeek === 7) {
+            $current = $current->modify('+1 day')->setTime(8, 0);
+            continue;
+        }
+
+        $opensAt = $current->setTime(8, 0);
+        $closesAt = $dayOfWeek === 6 ? $current->setTime(12, 0) : $current->setTime(17, 30);
+        if ($current < $opensAt) {
+            $current = $opensAt;
+        } elseif ($current >= $closesAt) {
+            $current = $current->modify('+1 day')->setTime(8, 0);
+            continue;
+        }
+
+        $availableSeconds = $closesAt->getTimestamp() - $current->getTimestamp();
+        if ($remainingSeconds <= $availableSeconds) {
+            return $current->modify('+' . $remainingSeconds . ' seconds');
+        }
+
+        $remainingSeconds -= $availableSeconds;
+        $current = $closesAt;
+    }
+}
+
+function ticket_sla_deadlines(DateTimeInterface $start, string $priority): array
+{
+    $sla = ticket_sla_minutes($priority);
+    return [
+        'response' => add_business_minutes($start, $sla['response']),
+        'resolution' => add_business_minutes($start, $sla['resolution']),
+    ];
 }
 
 function ticket_sla_hours(string $priority): int
@@ -318,7 +366,7 @@ function ticket_priority_label(string $priority): string
     ][$priority] ?? $priority;
 }
 
-function page_header(string $title, bool $isAdmin = false): void
+function page_header(string $title, bool $isAdmin = false, bool $showPageTitle = true): void
 {
     $user = $isAdmin ? require_admin() : null;
     $titleEscaped = e($title);
@@ -328,7 +376,7 @@ function page_header(string $title, bool $isAdmin = false): void
     echo '<title>' . $titleEscaped . ' | Everland Group</title>';
     echo '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
     echo '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap">';
-    echo '<link rel="stylesheet" href="' . e(app_path('/assets/css/style.css?v=everland20261106-9')) . '"></head><body class="' . e($pageClass) . '" data-app-base="' . e(APP_BASE_PATH) . '">';
+    echo '<link rel="stylesheet" href="' . e(app_path('/assets/css/style.css?v=everland20261106-10')) . '"></head><body class="' . e($pageClass) . '" data-app-base="' . e(APP_BASE_PATH) . '">';
     echo '<header class="topbar' . ($isAdmin ? ' admin-topbar' : '') . '"><a class="brand" href="' . e(app_path('/')) . '" aria-label="Everland Group — Trang chủ">'
         . '<span class="brand-mark"><img src="' . e(app_path('/assets/img/everland-1668155348.png')) . '" alt=""></span>'
         . '<span class="brand-copy"><strong>EVERLAND GROUP</strong><small>HỆ THỐNG HỖ TRỢ NỘI BỘ</small></span></a>';
@@ -354,7 +402,12 @@ function page_header(string $title, bool $isAdmin = false): void
     } else {
         echo '<nav class="nav"><a href="' . e(app_path('/')) . '">Gửi yêu cầu</a><a href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a></nav>';
     }
-    echo '</header><main class="container"><h1>' . $titleEscaped . '</h1>';
+    echo '</header><main class="container">';
+    if ($showPageTitle) {
+        echo '<h1>' . $titleEscaped . '</h1>';
+    } else {
+        echo '<h1 class="visually-hidden">' . $titleEscaped . '</h1>';
+    }
     if ($isAdmin) {
         echo '<script defer src="' . e(app_path('/assets/js/admin.js')) . '"></script>';
     }

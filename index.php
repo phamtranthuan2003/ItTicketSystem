@@ -133,17 +133,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                     unset($upload);
                 }
-                $sla = ticket_sla_minutes($priorityResult['priority']);
+                $createdAt = new DateTimeImmutable('now');
+                $deadlines = ticket_sla_deadlines($createdAt, $priorityResult['priority']);
                 $stmt = $pdo->prepare(
-                    'INSERT INTO tickets (ticket_code, full_name, department, contact, email, type, impact_scope, work_ability, priority, priority_score, response_due_at, resolution_due_at, title, description, attachment_name, attachment_original_name, ip_hash)
-                     VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, TIMESTAMPADD(MINUTE, ?, NOW()), TIMESTAMPADD(MINUTE, ?, NOW()), ?, ?, ?, ?, ?)'
+                    'INSERT INTO tickets (ticket_code, full_name, department, contact, email, type, impact_scope, work_ability, priority, priority_score, response_due_at, resolution_due_at, title, description, attachment_name, attachment_original_name, ip_hash, created_at)
+                     VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                 );
                 $stmt->execute([
                     $data['full_name'], $data['department'], $data['contact'], null,
                     $data['type'], $data['impact_scope'], $data['work_ability'],
                     $priorityResult['priority'], $priorityResult['score'],
-                    $sla['response'], $sla['resolution'], $data['title'], $data['description'],
-                    null, null, $ipHash,
+                    $deadlines['response']->format('Y-m-d H:i:s'), $deadlines['resolution']->format('Y-m-d H:i:s'),
+                    $data['title'], $data['description'], null, null, $ipHash, $createdAt->format('Y-m-d H:i:s'),
                 ]);
                 $ticketId = (int)$pdo->lastInsertId();
                 $successCode = (string)$ticketId;
@@ -190,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-page_header('Gửi yêu cầu');
+page_header('Gửi yêu cầu', false, false);
 ?>
 <section class="brand-hero" aria-label="Everland Group">
     <div class="brand-hero-content">
@@ -203,7 +204,7 @@ page_header('Gửi yêu cầu');
 <?php
 if ($successCode !== '') {
     $finalSla = ticket_sla_minutes($priorityResult['priority']);
-    echo '<div class="alert success"><h2>Gửi yêu cầu thành công</h2><p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p><p>Ưu tiên tự động: <strong>' . e(ticket_priority_label($priorityResult['priority'])) . '</strong> (' . (int)$priorityResult['score'] . ' điểm).</p><p>SLA: phản hồi trong ' . (int)$finalSla['response'] . ' phút, xử lý trong ' . (int)($finalSla['resolution'] / 60) . ' giờ.</p><p>Hãy lưu mã này để tra cứu trạng thái.</p><a class="button" href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a></div>';
+    echo '<div class="alert success"><h2>Gửi yêu cầu thành công</h2><p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p><p>Ưu tiên tự động: <strong>' . e(ticket_priority_label($priorityResult['priority'])) . '</strong> (' . (int)$priorityResult['score'] . ' điểm).</p><p>SLA: phản hồi trong ' . (int)$finalSla['response'] . ' phút làm việc, xử lý trong ' . (int)($finalSla['resolution'] / 60) . ' giờ làm việc.</p><p>Thời gian chỉ tính trong giờ làm việc: Thứ Hai–Thứ Sáu 8:00–17:30, Thứ Bảy 8:00–12:00.</p><p>Hãy lưu mã này để tra cứu trạng thái.</p><a class="button" href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a></div>';
 } else {
     foreach ($errors as $error) echo '<div class="alert error">' . e($error) . '</div>';
     ?>

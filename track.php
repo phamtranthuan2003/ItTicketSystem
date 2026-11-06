@@ -15,10 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Vui lòng nhập mã ticket dạng số.';
     } else {
         $pdo = db();
-        try {
-            $pdo->exec("UPDATE tickets SET resolution_due_at = TIMESTAMPADD(MINUTE, CASE priority WHEN 'high' THEN 120 WHEN 'medium' THEN 240 ELSE 360 END, created_at) WHERE status IN ('new', 'in_progress')");
-        } catch (Throwable) {}
-
         $stmt = $pdo->prepare('SELECT id, ticket_code, status, title, description, type, priority, response_due_at, resolution_due_at, created_at, updated_at, admin_note FROM tickets WHERE ticket_code = ? LIMIT 1');
         $stmt->execute([$code]);
         $ticket = $stmt->fetch() ?: null;
@@ -31,7 +27,7 @@ $statusIndex = array_search($ticket['status'] ?? '', $statusSteps, true);
 $statusIndex = $statusIndex === false ? 0 : $statusIndex;
 $statusIsRejected = ($ticket['status'] ?? '') === 'rejected';
 
-page_header('Tra cứu ticket');
+page_header('Tra cứu ticket', false, false);
 ?>
 <section class="track-search-card">
     <div class="track-search-copy">
@@ -100,8 +96,8 @@ page_header('Tra cứu ticket');
                 <strong><?= e($ticket['resolution_due_at'] ?? 'Chưa thiết lập') ?></strong>
             </div>
             <div class="track-detail-item">
-                <span>Thời hạn trong khoảng (SLA)</span>
-                <strong><?= ticket_sla_hours($ticket['priority']) ?> tiếng</strong>
+                <span>Thời hạn xử lý (SLA giờ làm việc)</span>
+                <strong><?= ticket_sla_hours($ticket['priority']) ?> tiếng làm việc</strong>
             </div>
         </div>
 

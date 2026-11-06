@@ -173,8 +173,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         try {
             $pdo->beginTransaction();
-            $update = $pdo->prepare("UPDATE tickets SET last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, admin_note = ?, updated_at = NOW() WHERE id = ?");
-            $update->execute([$status, $status, $priority, $note !== '' ? $note : null, $id]);
+            $priorityChanged = $ticket['priority'] !== $priority;
+            if ($priorityChanged) {
+                $deadlines = ticket_sla_deadlines(new DateTimeImmutable('now'), $priority);
+                $responseDeadline = $deadlines['response']->format('Y-m-d H:i:s');
+                $resolutionDeadline = $deadlines['resolution']->format('Y-m-d H:i:s');
+            } else {
+                $responseDeadline = $ticket['response_due_at'];
+                $resolutionDeadline = $ticket['resolution_due_at'];
+            }
+            $update = $pdo->prepare("UPDATE tickets SET last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, admin_note = ?, response_due_at = ?, resolution_due_at = ?, updated_at = NOW() WHERE id = ?");
+            $update->execute([
+                $status, $status, $priority, $note !== '' ? $note : null,
+                $responseDeadline, $resolutionDeadline, $id,
+            ]);
             if ($changes) {
                 add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode("\n", $historyChanges));
             }
@@ -269,11 +281,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     try {
         $pdo->beginTransaction();
-        $newSla = ticket_sla_minutes($priority);
-        $update = $pdo->prepare("UPDATE tickets SET full_name = ?, department = ?, contact = ?, type = ?, title = ?, description = ?, priority_score = ?, last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, response_due_at = IF(priority <> ?, TIMESTAMPADD(MINUTE, ?, created_at), response_due_at), resolution_due_at = IF(priority <> ?, TIMESTAMPADD(MINUTE, ?, created_at), resolution_due_at), assignee_id = ?, admin_note = ?, updated_at = NOW() WHERE id = ?");
+        $priorityChanged = $ticket['priority'] !== $priority;
+        if ($priorityChanged) {
+            $deadlines = ticket_sla_deadlines(new DateTimeImmutable('now'), $priority);
+            $responseDeadline = $deadlines['response']->format('Y-m-d H:i:s');
+            $resolutionDeadline = $deadlines['resolution']->format('Y-m-d H:i:s');
+        } else {
+            $responseDeadline = $ticket['response_due_at'];
+            $resolutionDeadline = $ticket['resolution_due_at'];
+        }
+        $update = $pdo->prepare("UPDATE tickets SET full_name = ?, department = ?, contact = ?, type = ?, title = ?, description = ?, priority_score = ?, last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, response_due_at = ?, resolution_due_at = ?, assignee_id = ?, admin_note = ?, updated_at = NOW() WHERE id = ?");
         $update->execute([
             $fullName, $department, $contact, $type, $title, $description, $priorityResult['score'], $status, $status, $priority,
-            $priority, $newSla['response'], $priority, $newSla['resolution'],
+            $responseDeadline, $resolutionDeadline,
             $assignee, $note !== '' ? $note : null, $id,
         ]);
         if ($changes || $historyChanges) add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode("\n", $historyChanges));
