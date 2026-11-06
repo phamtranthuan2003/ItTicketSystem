@@ -14,14 +14,15 @@
 7. Đăng nhập ban đầu: **admin / ChangeMe123!**. Vào **Tài khoản**, đổi mật khẩu admin sang mật khẩu riêng mạnh và không dùng lại mật khẩu này. Tạo thêm tài khoản staff nếu cần.
 8. Nếu nâng cấp cơ sở dữ liệu đã có, chạy `migration_ticket_device_types.sql` trong phpMyAdmin để cho phép các loại thiết bị mới mà vẫn giữ nguyên loại của ticket cũ; chạy thêm `migration_ticket_meeting_room.sql` để cho phép loại **Trực phòng họp**.
 9. Để nâng cấp phân quyền, bảo đảm tài khoản `thuanpt` tồn tại (nếu chưa có, đăng nhập bằng `admin` và tạo tài khoản này trước), rồi chạy `migration_super_admin.sql` và `migration_rbac_permissions.sql`. `migration_super_admin.sql` đặt `thuanpt` làm Super Admin và hạ các Super Admin khác xuống Admin; migration RBAC tạo cấu hình quyền mặc định. Chỉ `thuanpt` mới được gán vai trò và cấu hình quyền tại mục **Phân quyền**; các tài khoản cùng vai trò dùng chung quyền. Quyền của tài khoản `thuanpt` không thể bị thay đổi hoặc tài khoản bị xóa qua ứng dụng. Các quyền được kiểm tra ở phía máy chủ. Việc sửa trực tiếp cơ sở dữ liệu vẫn nằm ngoài quyền kiểm soát của ứng dụng.
-10. Để đổi mã các ticket hiện có sang số thứ tự theo ID, chạy `migration_numeric_ticket_codes.sql`.
-11. Để bật nhắc ticket quá hạn, chạy `migration_ticket_reminders.sql`, sau đó tạo tác vụ trong Windows Task Scheduler chạy mỗi 5 phút:
+10. Để lưu nội dung trước/sau đầy đủ trong lịch sử chỉnh sửa ticket, chạy `migration_ticket_history_details.sql` trên database hiện có. Các database cài mới đã dùng cột `LONGTEXT`.
+11. Để đổi mã các ticket hiện có sang số thứ tự theo ID, chạy `migration_numeric_ticket_codes.sql`.
+12. Để bật nhắc ticket quá hạn, chạy `migration_ticket_reminders.sql`, sau đó tạo tác vụ trong Windows Task Scheduler chạy mỗi 5 phút:
     `C:\xampp\php\php.exe C:\xampp\htdocs\ticket1\tools\ticket_reminders.php`
     Chương trình nhắc lại ticket còn trạng thái **Mới**: ưu tiên Cao mỗi 2 giờ, Trung bình mỗi 4 giờ; dừng khi ticket được chuyển sang trạng thái khác. Có thể kiểm tra an toàn bằng tham số `--dry-run`.
-12. Để bật phân loại ưu tiên và SLA, chạy `migration_ticket_priority_sla.sql`. Tạo thêm tác vụ Windows Task Scheduler chạy mỗi 5 phút:
+13. Để bật phân loại ưu tiên và SLA, chạy `migration_ticket_priority_sla.sql`. Tạo thêm tác vụ Windows Task Scheduler chạy mỗi 5 phút:
     `C:\xampp\php\php.exe C:\xampp\htdocs\ticket1\tools\ticket_sla_escalations.php`
     Dùng tham số `--dry-run` để xem ticket sẽ bị nâng mức mà không ghi dữ liệu. Ticket mới được chấm tự động: phạm vi cá nhân/phòng/toàn công ty lần lượt 0/3/6 điểm; khả năng làm việc đầy đủ/một phần/không thể lần lượt 0/3/6; mạng +3, PC/Laptop/Máy in +2, phòng IT +2; từ khóa khẩn cấp/gián đoạn/bảo mật +2 mỗi nhóm (tối đa +4). Từ 10 điểm là mức Cao, 5–9 là Trung bình, dưới 5 là Thấp. SLA lần lượt là Cao: phản hồi 15 phút/xử lý 2 giờ; Trung bình: 30 phút/xử lý 4 giờ; Thấp: 60 phút/xử lý 6 giờ. Khi quá hạn phản hồi, mức tăng một bậc; quá hạn xử lý tăng thêm một bậc, tối đa Cao. Kỹ thuật viên có thể chỉnh mức ưu tiên thủ công trong chi tiết ticket.
-13. Để lưu nhiều ảnh/tệp đính kèm cho một ticket, chạy `migration_multiple_ticket_attachments.sql`. Form cho phép dán nhiều ảnh bằng Ctrl+V hoặc chọn tối đa 5 tệp; mỗi tệp tối đa 5MB.
+14. Để lưu nhiều ảnh/tệp đính kèm cho một ticket, chạy `migration_multiple_ticket_attachments.sql`. Form cho phép dán nhiều ảnh bằng Ctrl+V hoặc chọn tối đa 5 tệp; mỗi tệp tối đa 5MB.
 
 Không nên để `APP_KEY` ở giá trị mẫu, mở phpMyAdmin ra mạng LAN, hoặc triển khai với thông tin xác thực mặc định.
 

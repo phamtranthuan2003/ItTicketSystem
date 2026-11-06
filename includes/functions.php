@@ -77,32 +77,54 @@ function calculate_ticket_priority(string $scope, string $workAbility, string $t
 {
     $scopePoints = ['individual' => 0, 'department' => 3, 'company' => 6];
     $workPoints = ['can_work' => 0, 'partial' => 3, 'cannot_work' => 6];
-    $score = ($scopePoints[$scope] ?? 0) + ($workPoints[$workAbility] ?? 0);
-    $score += $type === 'network' ? 3 : (in_array($type, ['pc', 'laptop', 'printer'], true) ? 2 : 0);
-    if (str_starts_with($department, 'IT -')) {
-        $score += 2;
-    }
+    $scopeScore = $scopePoints[$scope] ?? 0;
+    $workScore = $workPoints[$workAbility] ?? 0;
+    $typeScore = $type === 'network' ? 3 : (in_array($type, ['pc', 'laptop', 'printer'], true) ? 2 : 0);
+    $departmentScore = str_starts_with($department, 'IT -') ? 2 : 0;
+    $departmentLabel = $departmentScore > 0
+        ? 'Phòng ban IT: ' . $department
+        : 'Phòng ban không phải IT: ' . $department;
+    $breakdown = [
+        ['label' => 'Phạm vi ảnh hưởng: ' . (ticket_impact_scopes()[$scope] ?? $scope), 'points' => $scopeScore],
+        ['label' => 'Khả năng làm việc: ' . (ticket_work_abilities()[$workAbility] ?? $workAbility), 'points' => $workScore],
+        ['label' => 'Loại yêu cầu: ' . (ticket_type_label($type) ?: $type), 'points' => $typeScore],
+        ['label' => $departmentLabel, 'points' => $departmentScore],
+    ];
 
     $text = mb_strtolower($title . ' ' . $description, 'UTF-8');
     $keywordGroups = [
-        ['khẩn cấp', 'khẩn', 'gấp', 'urgent'],
-        ['mất kết nối', 'mất mạng', 'gián đoạn', 'không truy cập', 'ngừng hoạt động'],
-        ['virus', 'mã độc', 'ransomware', 'mất dữ liệu', 'rò rỉ dữ liệu'],
+        ['label' => 'Khẩn cấp', 'keywords' => ['khẩn cấp', 'khẩn', 'gấp', 'urgent']],
+        ['label' => 'Gián đoạn/kết nối', 'keywords' => ['mất kết nối', 'mất mạng', 'gián đoạn', 'không truy cập', 'ngừng hoạt động']],
+        ['label' => 'Bảo mật/mất dữ liệu', 'keywords' => ['virus', 'mã độc', 'ransomware', 'mất dữ liệu', 'rò rỉ dữ liệu']],
     ];
-    $matchedGroups = 0;
-    foreach ($keywordGroups as $keywords) {
-        foreach ($keywords as $keyword) {
+    $matchedGroups = [];
+    foreach ($keywordGroups as $group) {
+        foreach ($group['keywords'] as $keyword) {
             if (mb_strpos($text, $keyword, 0, 'UTF-8') !== false) {
-                $matchedGroups++;
+                $matchedGroups[] = [
+                    'label' => $group['label'],
+                    'keyword' => $keyword,
+                ];
                 break;
             }
         }
     }
-    $score += min(4, $matchedGroups * 2);
+    $keywordScore = min(4, count($matchedGroups) * 2);
+    $matchedKeywords = array_map(
+        static fn(array $group): string => $group['label'] . ': ' . $group['keyword'],
+        $matchedGroups
+    );
+    $breakdown[] = [
+        'label' => 'Từ khóa trong tiêu đề/mô tả: ' . ($matchedKeywords ? implode(', ', $matchedKeywords) : 'không phát hiện'),
+        'points' => $keywordScore,
+    ];
+    $score = $scopeScore + $workScore + $typeScore + $departmentScore + $keywordScore;
 
     return [
         'score' => $score,
         'priority' => $score >= 10 ? 'high' : ($score >= 5 ? 'medium' : 'low'),
+        'breakdown' => $breakdown,
+        'matched_keyword_groups' => $matchedGroups,
     ];
 }
 

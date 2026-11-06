@@ -194,7 +194,7 @@ page_header('Gửi yêu cầu');
 ?>
 <section class="brand-hero" aria-label="Everland Group">
     <div class="brand-hero-content">
-        <p class="brand-hero-kicker">EVERLAND GROUP · INTERNAL SERVICE DESK</p>
+        <p class="brand-hero-kicker">INTERNAL SERVICE DESK</p>
         <h2>Đồng hành cùng công việc của bạn</h2>
         <p>Gửi yêu cầu hỗ trợ nhanh chóng, theo dõi tiến độ xử lý minh bạch.</p>
         <div class="brand-hero-points"><span>Hỗ trợ nội bộ</span><span>Theo dõi ticket</span><span>Ưu tiên theo SLA</span></div>

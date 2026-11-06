@@ -320,6 +320,8 @@ tr.is-high { box-shadow: inset 4px 0 #d45a52; }
 .history { list-style: none; margin: 0; padding: 0; }
 .history li { border-left: 3px solid #8eb6d5; padding: 0 0 18px 14px; margin-left: 6px; }
 .history time { color: var(--muted); margin-left: 8px; }
+.history-details { margin-top: 5px; padding: 9px 11px; border-radius: 7px; background: #f5f8fb; overflow-wrap: anywhere; }
+.priority-explanation .muted { color: var(--muted); font-size: .9rem; }
 .inline-form { display: flex; gap: 6px; min-width: 220px; }
 .inline-form input { min-width: 120px; }
 .badge { display: inline-block; min-width: 20px; padding: 1px 6px; border-radius: 12px; background: #cf3e43; color: white; text-align: center; font-size: .75rem; }

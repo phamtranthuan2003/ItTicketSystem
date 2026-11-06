@@ -155,21 +155,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $changes = [];
+        $historyChanges = [];
         if ($ticket['status'] !== $status) {
-            $changes[] = 'Trạng thái: ' . ticket_status_label($ticket['status']) . ' → ' . ticket_status_label($status);
+            $change = 'Trạng thái: ' . ticket_status_label($ticket['status']) . ' → ' . ticket_status_label($status);
+            $changes[] = $change;
+            $historyChanges[] = $change;
         }
         if ($ticket['priority'] !== $priority) {
-            $changes[] = 'Ưu tiên: ' . ticket_priority_label($ticket['priority']) . ' → ' . ticket_priority_label($priority);
+            $change = 'Ưu tiên: ' . ticket_priority_label($ticket['priority']) . ' → ' . ticket_priority_label($priority);
+            $changes[] = $change;
+            $historyChanges[] = $change;
         }
         if ((string)$ticket['admin_note'] !== $note) {
             $changes[] = 'Cập nhật ghi chú phản hồi';
+            $historyChanges[] = 'Ghi chú phản hồi: "' . ((string)$ticket['admin_note'] !== '' ? (string)$ticket['admin_note'] : '(trống)')
+                . '" → "' . ($note !== '' ? $note : '(trống)') . '"';
         }
         try {
             $pdo->beginTransaction();
             $update = $pdo->prepare("UPDATE tickets SET last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, admin_note = ?, updated_at = NOW() WHERE id = ?");
             $update->execute([$status, $status, $priority, $note !== '' ? $note : null, $id]);
             if ($changes) {
-                add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode('; ', $changes));
+                add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode("\n", $historyChanges));
             }
             $pdo->commit();
             admin_flash('success', 'Trạng thái và ghi chú đã được cập nhật.');
@@ -222,31 +229,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $changes = [];
-    if ($ticket['full_name'] !== $fullName) $changes[] = 'Người gửi: ' . $ticket['full_name'] . ' → ' . $fullName;
-    if ($ticket['department'] !== $department) $changes[] = 'Phòng ban: ' . $ticket['department'] . ' → ' . $department;
-    if ($ticket['contact'] !== $contact) $changes[] = 'Zalo liên hệ đã thay đổi';
-    if ($ticket['type'] !== $type) $changes[] = 'Loại yêu cầu: ' . ticket_type_label($ticket['type']) . ' → ' . ticket_type_label($type);
-    if ($ticket['title'] !== $title) $changes[] = 'Tiêu đề: ' . $ticket['title'] . ' → ' . $title;
-    if ($ticket['description'] !== $description) $changes[] = 'Cập nhật mô tả';
-    if ($ticket['status'] !== $status) $changes[] = 'Trạng thái: ' . ticket_status_label($ticket['status']) . ' → ' . ticket_status_label($status);
-    if ($ticket['priority'] !== $priority) $changes[] = 'Ưu tiên: ' . ticket_priority_label($ticket['priority']) . ' → ' . ticket_priority_label($priority);
+    $historyChanges = [];
+    $recordChange = static function (string $label, string $oldValue, string $newValue) use (&$changes, &$historyChanges): void {
+        $changes[] = $label . ' đã thay đổi';
+        $historyChanges[] = $label . ': "' . ($oldValue !== '' ? $oldValue : '(trống)')
+            . '" → "' . ($newValue !== '' ? $newValue : '(trống)') . '"';
+    };
+    if ($ticket['full_name'] !== $fullName) $recordChange('Người gửi', (string)$ticket['full_name'], $fullName);
+    if ($ticket['department'] !== $department) $recordChange('Phòng ban', (string)$ticket['department'], $department);
+    if ($ticket['contact'] !== $contact) $recordChange('Zalo liên hệ', (string)$ticket['contact'], $contact);
+    if ($ticket['type'] !== $type) $recordChange('Loại yêu cầu', ticket_type_label($ticket['type']), ticket_type_label($type));
+    if ($ticket['title'] !== $title) $recordChange('Tiêu đề', (string)$ticket['title'], $title);
+    if ($ticket['description'] !== $description) $recordChange('Mô tả', (string)$ticket['description'], $description);
+    if ($ticket['status'] !== $status) {
+        $recordChange('Trạng thái', ticket_status_label($ticket['status']), ticket_status_label($status));
+    }
+    if ($ticket['priority'] !== $priority) {
+        $recordChange('Ưu tiên', ticket_priority_label($ticket['priority']), ticket_priority_label($priority));
+    }
     $oldAssignee = $ticket['assignee_id'] ? (string)$ticket['assignee_id'] : '';
-    if ($oldAssignee !== (string)($assignee ?? '')) $changes[] = 'Người xử lý: ' . ($ticket['assignee_name'] ?? 'Chưa gán') . ' → ' . ($assigneeName ?? 'Chưa gán');
-    if ((string)$ticket['admin_note'] !== $note) $changes[] = 'Cập nhật ghi chú phản hồi';
+    if ($oldAssignee !== (string)($assignee ?? '')) {
+        $recordChange('Người xử lý', (string)($ticket['assignee_name'] ?? 'Chưa gán'), (string)($assigneeName ?? 'Chưa gán'));
+    }
+    if ((string)$ticket['admin_note'] !== $note) {
+        $recordChange('Ghi chú phản hồi', (string)$ticket['admin_note'], $note);
+    }
+    $priorityResult = calculate_ticket_priority(
+        (string)$ticket['impact_scope'],
+        (string)$ticket['work_ability'],
+        $type,
+        $department,
+        $title,
+        $description
+    );
+    if ($ticket['priority_score'] === null || (int)$ticket['priority_score'] !== $priorityResult['score']) {
+        $historyChanges[] = 'Điểm ưu tiên tự động: '
+            . ($ticket['priority_score'] !== null ? (int)$ticket['priority_score'] : 'chưa có')
+            . ' → ' . $priorityResult['score'];
+    }
     try {
         $pdo->beginTransaction();
         $newSla = ticket_sla_minutes($priority);
-        $update = $pdo->prepare("UPDATE tickets SET full_name = ?, department = ?, contact = ?, type = ?, title = ?, description = ?, last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, response_due_at = IF(priority <> ?, TIMESTAMPADD(MINUTE, ?, created_at), response_due_at), resolution_due_at = IF(priority <> ?, TIMESTAMPADD(MINUTE, ?, created_at), resolution_due_at), assignee_id = ?, admin_note = ?, updated_at = NOW() WHERE id = ?");
+        $update = $pdo->prepare("UPDATE tickets SET full_name = ?, department = ?, contact = ?, type = ?, title = ?, description = ?, priority_score = ?, last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, response_due_at = IF(priority <> ?, TIMESTAMPADD(MINUTE, ?, created_at), response_due_at), resolution_due_at = IF(priority <> ?, TIMESTAMPADD(MINUTE, ?, created_at), resolution_due_at), assignee_id = ?, admin_note = ?, updated_at = NOW() WHERE id = ?");
         $update->execute([
-            $fullName, $department, $contact, $type, $title, $description, $status, $status, $priority,
+            $fullName, $department, $contact, $type, $title, $description, $priorityResult['score'], $status, $status, $priority,
             $priority, $newSla['response'], $priority, $newSla['resolution'],
             $assignee, $note !== '' ? $note : null, $id,
         ]);
-        if ($changes) add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode('; ', $changes));
+        if ($changes || $historyChanges) add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode("\n", $historyChanges));
         $pdo->commit();
         admin_flash('success', 'Ticket đã được cập nhật.');
         // Chỉ báo quản lý khi có thay đổi quan trọng (không gửi khi chỉ sửa ghi chú)
-        $mailChanges = array_values(array_filter($changes, static fn(string $c): bool => !str_starts_with($c, 'Cập nhật ghi chú')));
+        $mailChanges = array_values(array_filter($changes, static fn(string $c): bool => !str_starts_with($c, 'Ghi chú phản hồi')));
         if ($mailChanges) {
             notify_managers_ticket_updated(array_merge($ticket, [
                 'full_name' => $fullName,
@@ -269,9 +303,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $assignees = $pdo->query('SELECT id, username FROM admins WHERE is_active = 1 ORDER BY username')->fetchAll();
-$historyStmt = $pdo->prepare('SELECT h.action, h.details, h.created_at, a.username FROM ticket_history h LEFT JOIN admins a ON a.id = h.admin_id WHERE h.ticket_id = ? ORDER BY h.id DESC');
+$historyStmt = $pdo->prepare('SELECT h.admin_id, h.action, h.details, h.created_at, a.username FROM ticket_history h LEFT JOIN admins a ON a.id = h.admin_id WHERE h.ticket_id = ? ORDER BY h.id DESC');
 $historyStmt->execute([$id]);
 $history = $historyStmt->fetchAll();
+$priorityCalculation = calculate_ticket_priority(
+    (string)$ticket['impact_scope'],
+    (string)$ticket['work_ability'],
+    (string)$ticket['type'],
+    (string)$ticket['department'],
+    (string)$ticket['title'],
+    (string)$ticket['description']
+);
 $attachmentStmt = $pdo->prepare('SELECT id, stored_name, original_name, mime_type FROM ticket_attachments WHERE ticket_id = ? ORDER BY id');
 $attachmentStmt->execute([$id]);
 $attachments = $attachmentStmt->fetchAll();
@@ -359,7 +401,7 @@ show_flash();
                 <label class="full">Mô tả chi tiết<textarea name="description" rows="7" required maxlength="20000"><?= e($ticket['description']) ?></textarea></label>
             <?php endif; ?>
             <label class="full">Trạng thái<select name="status"><?php foreach ($statuses as $item): ?><option value="<?= e($item) ?>" <?= $ticket['status'] === $item ? 'selected' : '' ?>><?= e(ticket_status_label($item)) ?></option><?php endforeach; ?></select></label>
-            <label class="full">Mức ưu tiên (có thể điều chỉnh thủ công)<select name="priority"><?php foreach ($priorities as $item): ?><option value="<?= e($item) ?>" <?= $ticket['priority'] === $item ? 'selected' : '' ?>><?= e(ticket_priority_label($item)) ?></option><?php endforeach; ?></select></label>
+            <label class="full">Mức ưu tiên<select name="priority"><?php foreach ($priorities as $item): ?><option value="<?= e($item) ?>" <?= $ticket['priority'] === $item ? 'selected' : '' ?>><?= e(ticket_priority_label($item)) ?></option><?php endforeach; ?></select></label>
             <?php if ($canManageTickets): ?>
                 <label class="full">Gán cho<select name="assignee_id"><option value="">Chưa gán</option><?php foreach ($assignees as $person): ?><option value="<?= (int)$person['id'] ?>" <?= (int)$ticket['assignee_id'] === (int)$person['id'] ? 'selected' : '' ?>><?= e($person['username']) ?></option><?php endforeach; ?></select></label>
             <?php endif; ?>
@@ -369,5 +411,43 @@ show_flash();
     </section>
     <?php endif; ?>
 </div>
-<section class="card"><h2>Lịch sử thay đổi</h2><?php if (!$history): ?><p>Chưa có thay đổi.</p><?php else: ?><ul class="history"><?php foreach ($history as $item): ?><li><strong><?= e($item['action']) ?></strong> — <?= e($item['username'] ?? 'Tài khoản đã xóa') ?> <time><?= e($item['created_at']) ?></time><div><?= e($item['details']) ?></div></li><?php endforeach; ?></ul><?php endif; ?></section>
+<section class="card priority-explanation">
+    <h2>Cách tính điểm ưu tiên</h2>
+    <p>Điểm được tính từ thông tin hiện tại của ticket. Tổng điểm: <strong><?= (int)$priorityCalculation['score'] ?></strong> — tương ứng mức <?= e(ticket_priority_label($priorityCalculation['priority'])) ?> theo công thức.</p>
+    <?php if ($ticket['priority_score'] !== null && (int)$ticket['priority_score'] !== $priorityCalculation['score']): ?>
+        <p class="muted">Điểm đang lưu: <?= (int)$ticket['priority_score'] ?>. Nội dung dùng để tính điểm đã thay đổi; điểm sẽ được đồng bộ khi lưu ticket.</p>
+    <?php elseif ($ticket['priority_score'] === null): ?>
+        <p class="muted">Ticket cũ chưa lưu điểm; con số trên được tính lại từ dữ liệu hiện tại.</p>
+    <?php endif; ?>
+    <?php if ($ticket['priority'] !== $priorityCalculation['priority']): ?>
+        <p class="muted">Mức ưu tiên đang áp dụng là <?= e(ticket_priority_label($ticket['priority'])) ?>; mức theo điểm là <?= e(ticket_priority_label($priorityCalculation['priority'])) ?>. Mức ưu tiên có thể được điều chỉnh thủ công hoặc nâng theo SLA.</p>
+    <?php endif; ?>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Yếu tố</th><th>Điểm cộng</th></tr></thead>
+            <tbody>
+                <?php foreach ($priorityCalculation['breakdown'] as $factor): ?>
+                    <tr><td><?= e($factor['label']) ?></td><td><?= (int)$factor['points'] ?></td></tr>
+                <?php endforeach; ?>
+                <tr><th>Tổng điểm</th><th><?= (int)$priorityCalculation['score'] ?></th></tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="muted">Phạm vi ảnh hưởng: cá nhân +0, cả phòng +3, toàn công ty +6. Khả năng làm việc: vẫn làm được +0, một phần +3, không làm được +6. Loại mạng +3; PC/Laptop/Máy in +2; loại khác +0. Phòng IT +2. Mỗi nhóm từ khóa khẩn cấp, gián đoạn/kết nối và bảo mật/mất dữ liệu được +2, tối đa +4. Mức ưu tiên theo điểm: dưới 5 là Thấp, 5–9 là Trung bình, từ 10 là Cao.</p>
+</section>
+<section class="card">
+    <h2>Lịch sử chỉnh sửa</h2>
+    <?php if (!$history): ?><p>Chưa có thay đổi.</p><?php else: ?>
+        <ul class="history">
+            <?php foreach ($history as $item): ?>
+                <?php $actor = $item['username'] ?? (str_starts_with((string)$item['action'], 'Tự động') ? 'Hệ thống' : 'Tài khoản đã xóa'); ?>
+                <li>
+                    <strong><?= e($item['action']) ?></strong>
+                    <div><strong>Người thực hiện:</strong> <?= e($actor) ?> <time><?= e($item['created_at']) ?></time></div>
+                    <div class="history-details preserve-lines"><?= e($item['details']) ?></div>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
+</section>
 <?php page_footer(); ?>

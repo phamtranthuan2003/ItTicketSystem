@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS ticket_history (
   ticket_id BIGINT UNSIGNED NOT NULL,
   admin_id INT UNSIGNED NULL,
   action VARCHAR(150) NOT NULL,
-  details TEXT NOT NULL,
+  details LONGTEXT NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_ticket_history_ticket (ticket_id, id),

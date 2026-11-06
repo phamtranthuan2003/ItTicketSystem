@@ -42,7 +42,7 @@ const SMTP_TIMEOUT = 15;               // giây; tránh treo trang nếu máy ch
 
 // --- Người quản lý nhận thông báo ---
 const MANAGER_RECIPIENTS = [
-    // 'all'        => ['duc.vm@everland.vn', 'thuan.pt@everland.vn'],
+    'all'        => ['duc.vm@everland.vn', 'thuan.pt@everland.vn'],
     'it'         => [],
     'hr'         => [],
     'admin'      => [],
