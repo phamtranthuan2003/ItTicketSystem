@@ -100,7 +100,7 @@ page_header('Tra cứu ticket');
                 <strong><?= e($ticket['resolution_due_at'] ?? 'Chưa thiết lập') ?></strong>
             </div>
             <div class="track-detail-item">
-                <span>Thời hạn cam kết (SLA)</span>
+                <span>Thời hạn trong khoảng (SLA)</span>
                 <strong><?= ticket_sla_hours($ticket['priority']) ?> tiếng</strong>
             </div>
         </div>

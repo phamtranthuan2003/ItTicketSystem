@@ -179,18 +179,18 @@ page_header('Tổng quan', true);
 <section class="card">
     <h2>Thống kê theo mức độ ưu tiên</h2>
     <div class="priority-stats">
-        <a class="priority-stat priority-high" href="<?= e(app_path('/admin/tickets.php?priority=high')) ?>" title="Xem các ticket mức Cao (P1)">
-            <span>P1 — Cao</span>
+        <a class="priority-stat priority-high" href="<?= e(app_path('/admin/tickets.php?priority=high')) ?>" title="Xem các ticket mức Cao">
+            <span>Cao</span>
             <strong><?= $priorityCounts['high'] ?></strong>
             <small>SLA xử lý: 2 tiếng</small>
         </a>
-        <a class="priority-stat priority-medium" href="<?= e(app_path('/admin/tickets.php?priority=medium')) ?>" title="Xem các ticket mức Trung bình (P2)">
-            <span>P2 — Trung bình</span>
+        <a class="priority-stat priority-medium" href="<?= e(app_path('/admin/tickets.php?priority=medium')) ?>" title="Xem các ticket mức Trung bình">
+            <span>Trung bình</span>
             <strong><?= $priorityCounts['medium'] ?></strong>
             <small>SLA xử lý: 4 tiếng</small>
         </a>
-        <a class="priority-stat priority-low" href="<?= e(app_path('/admin/tickets.php?priority=low')) ?>" title="Xem các ticket mức Thấp (P3)">
-            <span>P3 — Thấp</span>
+        <a class="priority-stat priority-low" href="<?= e(app_path('/admin/tickets.php?priority=low')) ?>" title="Xem các ticket mức Thấp">
+            <span>Thấp</span>
             <strong><?= $priorityCounts['low'] ?></strong>
             <small>SLA xử lý: 6 tiếng</small>
         </a>

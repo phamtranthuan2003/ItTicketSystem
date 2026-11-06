@@ -200,9 +200,9 @@ function ticket_type_label(string $type): string
 function ticket_priority_label(string $priority): string
 {
     return [
-        'low' => 'P3 — Thấp',
-        'medium' => 'P2 — Trung bình',
-        'high' => 'P1 — Cao',
+        'low' => 'Thấp',
+        'medium' => 'Trung bình',
+        'high' => 'Cao',
     ][$priority] ?? $priority;
 }
 
