@@ -14,7 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!preg_match('/^\d{1,20}$/', $code)) {
         $error = 'Vui lòng nhập mã ticket dạng số.';
     } else {
-        $stmt = db()->prepare('SELECT ticket_code, status, title, type, priority, response_due_at, resolution_due_at, created_at, updated_at, admin_note FROM tickets WHERE ticket_code = ? LIMIT 1');
+        $pdo = db();
+        try {
+            $pdo->exec("UPDATE tickets SET resolution_due_at = TIMESTAMPADD(MINUTE, CASE priority WHEN 'high' THEN 120 WHEN 'medium' THEN 240 ELSE 360 END, created_at) WHERE status IN ('new', 'in_progress')");
+        } catch (Throwable) {}
+
+        $stmt = $pdo->prepare('SELECT id, ticket_code, status, title, description, type, priority, response_due_at, resolution_due_at, created_at, updated_at, admin_note FROM tickets WHERE ticket_code = ? LIMIT 1');
         $stmt->execute([$code]);
         $ticket = $stmt->fetch() ?: null;
         if (!$ticket) $error = 'Không tìm thấy ticket với thông tin đã nhập.';
@@ -75,20 +80,16 @@ page_header('Tra cứu ticket');
         </div>
         <div class="track-details-grid">
             <div class="track-detail-item">
-                <span>Ưu tiên</span>
-                <strong class="track-priority priority-<?= e($ticket['priority']) ?>"><?= e(ticket_priority_label($ticket['priority'])) ?></strong>
-            </div>
-            <div class="track-detail-item">
                 <span>Loại yêu cầu</span>
                 <strong><?= e(ticket_type_label($ticket['type'])) ?></strong>
             </div>
             <div class="track-detail-item">
-                <span>Ngày gửi</span>
-                <strong><?= e($ticket['created_at']) ?></strong>
+                <span>Mức độ ưu tiên</span>
+                <strong class="track-priority priority-<?= e($ticket['priority']) ?>"><?= e(ticket_priority_label($ticket['priority'])) ?></strong>
             </div>
             <div class="track-detail-item">
-                <span>Cập nhật lần cuối</span>
-                <strong><?= e($ticket['updated_at']) ?></strong>
+                <span>Ngày gửi</span>
+                <strong><?= e($ticket['created_at']) ?></strong>
             </div>
             <div class="track-detail-item">
                 <span>Hạn phản hồi</span>
@@ -98,7 +99,22 @@ page_header('Tra cứu ticket');
                 <span>Hạn xử lý</span>
                 <strong><?= e($ticket['resolution_due_at'] ?? 'Chưa thiết lập') ?></strong>
             </div>
+            <div class="track-detail-item">
+                <span>Thời hạn cam kết (SLA)</span>
+                <strong><?= ticket_sla_hours($ticket['priority']) ?> tiếng</strong>
+            </div>
         </div>
+
+        <div class="track-description">
+            <div class="track-description-header">
+                <span class="track-description-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                </span>
+                <strong>Mô tả chi tiết</strong>
+            </div>
+            <div class="track-description-content preserve-lines"><?= e($ticket['description'] !== '' ? $ticket['description'] : 'Không có mô tả chi tiết.') ?></div>
+        </div>
+
         <?php if (!empty($ticket['admin_note'])): ?>
             <div class="track-note">
                 <span class="track-note-icon" aria-hidden="true">i</span>

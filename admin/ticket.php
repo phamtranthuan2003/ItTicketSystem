@@ -230,9 +230,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ((string)$ticket['admin_note'] !== $note) $changes[] = 'Cập nhật ghi chú phản hồi';
     try {
         $pdo->beginTransaction();
-        $update = $pdo->prepare("UPDATE tickets SET full_name = ?, department = ?, contact = ?, type = ?, title = ?, description = ?, last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, assignee_id = ?, admin_note = ?, updated_at = NOW() WHERE id = ?");
+        $newSla = ticket_sla_minutes($priority);
+        $update = $pdo->prepare("UPDATE tickets SET full_name = ?, department = ?, contact = ?, type = ?, title = ?, description = ?, last_reminded_at = IF(status <> 'new' AND ? = 'new', NULL, last_reminded_at), status = ?, priority = ?, response_due_at = IF(priority <> ?, TIMESTAMPADD(MINUTE, ?, created_at), response_due_at), resolution_due_at = IF(priority <> ?, TIMESTAMPADD(MINUTE, ?, created_at), resolution_due_at), assignee_id = ?, admin_note = ?, updated_at = NOW() WHERE id = ?");
         $update->execute([
             $fullName, $department, $contact, $type, $title, $description, $status, $status, $priority,
+            $priority, $newSla['response'], $priority, $newSla['resolution'],
             $assignee, $note !== '' ? $note : null, $id,
         ]);
         if ($changes) add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode('; ', $changes));

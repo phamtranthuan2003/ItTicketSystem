@@ -14,11 +14,11 @@ ALTER TABLE tickets
 UPDATE tickets
 SET response_due_at = TIMESTAMPADD(
       MINUTE,
-      CASE priority WHEN 'high' THEN 15 WHEN 'medium' THEN 60 ELSE 240 END,
+      CASE priority WHEN 'high' THEN 15 WHEN 'medium' THEN 30 ELSE 60 END,
       created_at
     ),
     resolution_due_at = TIMESTAMPADD(
       MINUTE,
-      CASE priority WHEN 'high' THEN 240 WHEN 'medium' THEN 1440 ELSE 4320 END,
+      CASE priority WHEN 'high' THEN 120 WHEN 'medium' THEN 240 ELSE 360 END,
       created_at
     );
