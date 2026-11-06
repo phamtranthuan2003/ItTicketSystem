@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'full_name' => trim((string)($_POST['full_name'] ?? '')),
         'department' => trim((string)($_POST['department'] ?? '')),
         'contact' => trim((string)($_POST['contact'] ?? '')),
-        'type' => (string)($_POST['type'] ?? 'other'),
+        'type' => (string)($_POST['type'] ?? 'pc'),
         'impact_scope' => (string)($_POST['impact_scope'] ?? ''),
         'work_ability' => (string)($_POST['work_ability'] ?? ''),
         'title' => trim((string)($_POST['title'] ?? '')),

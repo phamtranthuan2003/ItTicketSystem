@@ -12,7 +12,7 @@
 5. Đảm bảo thư mục `uploads` có quyền ghi bởi Apache. Tệp được lưu trong thư mục này khi gửi ticket và admin có thể xem ảnh trong chi tiết ticket; truy cập web trực tiếp vào thư mục upload bị chặn. Giữ `uploads/.htaccess` đúng chỗ, **không** chép ra thư mục gốc `ticket` (nó chặn mọi file PHP). Sau khi import xong, xóa hoặc chuyển `database.sql` ra ngoài `htdocs`.
 6. Truy cập `http://localhost/ticket/` để gửi ticket; trang quản trị tại `http://localhost/ticket/admin/`.
 7. Đăng nhập ban đầu: **admin / ChangeMe123!**. Vào **Tài khoản**, đổi mật khẩu admin sang mật khẩu riêng mạnh và không dùng lại mật khẩu này. Tạo thêm tài khoản staff nếu cần.
-8. Nếu nâng cấp cơ sở dữ liệu đã có, chạy `migration_ticket_device_types.sql` trong phpMyAdmin để cho phép các loại thiết bị mới mà vẫn giữ nguyên loại của ticket cũ.
+8. Nếu nâng cấp cơ sở dữ liệu đã có, chạy `migration_ticket_device_types.sql` trong phpMyAdmin để cho phép các loại thiết bị mới mà vẫn giữ nguyên loại của ticket cũ; chạy thêm `migration_ticket_meeting_room.sql` để cho phép loại **Trực phòng họp**.
 9. Để nâng cấp phân quyền, bảo đảm tài khoản `thuanpt` tồn tại rồi chạy `migration_super_admin.sql`. Tài khoản này được đặt làm Super Admin; chỉ tài khoản này được đổi vai trò, và tài khoản Super Admin không thể bị đổi mật khẩu, đổi quyền hoặc xóa bởi tài khoản khác. Admin được sửa/xóa ticket và quản lý tài khoản thông thường; Staff có thể đổi trạng thái, mức ưu tiên và ghi chú phản hồi.
 10. Để đổi mã các ticket hiện có sang số thứ tự theo ID, chạy `migration_numeric_ticket_codes.sql`.
 11. Để bật nhắc ticket quá hạn, chạy `migration_ticket_reminders.sql`, sau đó tạo tác vụ trong Windows Task Scheduler chạy mỗi 5 phút:

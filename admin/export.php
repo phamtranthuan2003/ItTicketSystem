@@ -4,18 +4,21 @@ require_once dirname(__DIR__) . '/includes/functions.php';
 require_admin();
 
 $validStatuses = ['new', 'in_progress', 'completed', 'rejected'];
-$validTypes = array_merge(array_keys(ticket_types()), ['it', 'hr', 'admin', 'accounting']);
+$validTypes = array_keys(ticket_types());
+$departments = ticket_departments();
 $validPriorities = ['low', 'medium', 'high'];
 $where = [];
 $params = [];
 $status = (string)($_GET['status'] ?? '');
 $type = (string)($_GET['type'] ?? '');
+$department = (string)($_GET['department'] ?? '');
 $priority = (string)($_GET['priority'] ?? '');
 $from = (string)($_GET['from'] ?? '');
 $to = (string)($_GET['to'] ?? '');
 $q = trim((string)($_GET['q'] ?? ''));
 if (in_array($status, $validStatuses, true)) { $where[] = 't.status = ?'; $params[] = $status; }
 if (in_array($type, $validTypes, true)) { $where[] = 't.type = ?'; $params[] = $type; }
+if (in_array($department, $departments, true)) { $where[] = 't.department = ?'; $params[] = $department; }
 if (in_array($priority, $validPriorities, true)) { $where[] = 't.priority = ?'; $params[] = $priority; }
 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) { $where[] = 't.created_at >= ?'; $params[] = $from . ' 00:00:00'; }
 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) { $where[] = 't.created_at <= ?'; $params[] = $to . ' 23:59:59'; }

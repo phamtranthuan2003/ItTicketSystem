@@ -236,6 +236,8 @@ tr.is-high { box-shadow: inset 4px 0 #d45a52; }
 .filters { display: grid; grid-template-columns: 2fr repeat(5, minmax(120px, 1fr)); align-items: end; gap: 12px; }
 .filters label { font-size: .9rem; }
 .filters button, .filters .button { min-height: 43px; }
+.filter-date-range { grid-column: 1 / span 2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.filter-actions { grid-column: 3 / span 2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 12px; }
 .ticket-list-summary { margin: 0 0 14px; color: var(--muted); font-size: .92rem; }
 .pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 18px; }
 .pagination-info { color: var(--muted); font-size: .88rem; font-weight: 600; }
@@ -267,6 +269,7 @@ tr.is-high { box-shadow: inset 4px 0 #d45a52; }
 
 @media (max-width: 850px) {
   .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-date-range, .filter-actions { grid-column: 1 / -1; }
   .detail-grid { grid-template-columns: 1fr; }
   .track-search-card { grid-template-columns: 1fr; gap: 20px; }
   .admin-topbar { align-items: flex-start; flex-wrap: wrap; }
@@ -321,6 +324,8 @@ tr.is-high { box-shadow: inset 4px 0 #d45a52; }
   .form-grid { grid-template-columns: 1fr; }
   .full { grid-column: auto; }
   .filters { grid-template-columns: 1fr; }
+  .filter-date-range { grid-template-columns: 1fr; }
+  .filter-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .details { grid-template-columns: 1fr; gap: 2px; }
   .details dd { margin-bottom: 8px; }
   .stat strong { font-size: 1.6rem; }

@@ -50,8 +50,8 @@ function ticket_types(): array
         'pc' => 'PC',
         'laptop' => 'Laptop',
         'printer' => 'Máy in',
-        'network' => 'Mạng',
-        'other' => 'Khác',
+        'network' => 'Mạng Internet',
+        'meeting_room' => 'Trực phòng họp',
     ];
 }
 
@@ -175,7 +175,8 @@ function ticket_type_label(string $type): string
         'pc' => 'PC',
         'laptop' => 'Laptop',
         'printer' => 'Máy in',
-        'network' => 'Mạng',
+        'network' => 'Mạng Internet',
+        'meeting_room' => 'Trực phòng họp',
         'it' => 'IT',
         'hr' => 'Nhân sự',
         'admin' => 'Hành chính',

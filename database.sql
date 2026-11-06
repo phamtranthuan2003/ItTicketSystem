@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   department VARCHAR(150) NOT NULL,
   contact VARCHAR(190) NOT NULL,
   email VARCHAR(190) NULL,
-  type ENUM('it', 'hr', 'admin', 'accounting', 'pc', 'laptop', 'printer', 'network', 'other') NOT NULL DEFAULT 'other',
+  type ENUM('it', 'hr', 'admin', 'accounting', 'pc', 'laptop', 'printer', 'network', 'meeting_room', 'other') NOT NULL DEFAULT 'other',
   priority ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
   priority_score SMALLINT UNSIGNED NULL,
   impact_scope ENUM('individual', 'department', 'company') NOT NULL DEFAULT 'individual',

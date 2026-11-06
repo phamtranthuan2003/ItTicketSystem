@@ -4,11 +4,13 @@ require_once dirname(__DIR__) . '/includes/functions.php';
 $user = require_admin();
 
 $validStatuses = ['new', 'in_progress', 'completed', 'rejected'];
-$validTypes = array_merge(array_keys(ticket_types()), ['it', 'hr', 'admin', 'accounting']);
+$validTypes = array_keys(ticket_types());
+$departments = ticket_departments();
 $validPriorities = ['low', 'medium', 'high'];
 $filters = [
     'status' => (string)($_GET['status'] ?? ''),
     'type' => (string)($_GET['type'] ?? ''),
+    'department' => (string)($_GET['department'] ?? ''),
     'priority' => (string)($_GET['priority'] ?? ''),
     'from' => (string)($_GET['from'] ?? ''),
     'to' => (string)($_GET['to'] ?? ''),
@@ -18,6 +20,7 @@ $where = [];
 $params = [];
 if (in_array($filters['status'], $validStatuses, true)) { $where[] = 't.status = ?'; $params[] = $filters['status']; }
 if (in_array($filters['type'], $validTypes, true)) { $where[] = 't.type = ?'; $params[] = $filters['type']; }
+if (in_array($filters['department'], $departments, true)) { $where[] = 't.department = ?'; $params[] = $filters['department']; }
 if (in_array($filters['priority'], $validPriorities, true)) { $where[] = 't.priority = ?'; $params[] = $filters['priority']; }
 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['from'])) { $where[] = 't.created_at >= ?'; $params[] = $filters['from'] . ' 00:00:00'; }
 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['to'])) { $where[] = 't.created_at <= ?'; $params[] = $filters['to'] . ' 23:59:59'; }
@@ -59,11 +62,16 @@ show_flash();
         <label>Tìm kiếm<input name="q" value="<?= e($filters['q']) ?>" placeholder="Mã, tên, tiêu đề"></label>
         <label>Trạng thái<select name="status"><option value="">Tất cả</option><?php foreach ($validStatuses as $item): ?><option value="<?= e($item) ?>" <?= $filters['status'] === $item ? 'selected' : '' ?>><?= e(ticket_status_label($item)) ?></option><?php endforeach; ?></select></label>
         <label>Loại<select name="type"><option value="">Tất cả</option><?php foreach ($validTypes as $item): ?><option value="<?= e($item) ?>" <?= $filters['type'] === $item ? 'selected' : '' ?>><?= e(ticket_type_label($item)) ?></option><?php endforeach; ?></select></label>
+        <label>Ban/Phòng ban<select name="department"><option value="">Tất cả</option><?php foreach ($departments as $item): ?><option value="<?= e($item) ?>" <?= $filters['department'] === $item ? 'selected' : '' ?>><?= e($item) ?></option><?php endforeach; ?></select></label>
         <label>Ưu tiên<select name="priority"><option value="">Tất cả</option><?php foreach ($validPriorities as $item): ?><option value="<?= e($item) ?>" <?= $filters['priority'] === $item ? 'selected' : '' ?>><?= e(ticket_priority_label($item)) ?></option><?php endforeach; ?></select></label>
-        <label>Từ ngày<input type="date" name="from" value="<?= e($filters['from']) ?>"></label>
-        <label>Đến ngày<input type="date" name="to" value="<?= e($filters['to']) ?>"></label>
-        <button type="submit">Lọc</button>
-        <a class="button secondary" href="<?= e(app_path('/admin/export.php')) ?>?<?= e(http_build_query($filters)) ?>">Xuất CSV</a>
+        <div class="filter-date-range">
+            <label>Từ ngày<input type="date" name="from" value="<?= e($filters['from']) ?>"></label>
+            <label>Đến ngày<input type="date" name="to" value="<?= e($filters['to']) ?>"></label>
+        </div>
+        <div class="filter-actions">
+            <button type="submit">Lọc</button>
+            <a class="button secondary" href="<?= e(app_path('/admin/export.php')) ?>?<?= e(http_build_query($filters)) ?>">Xuất CSV</a>
+        </div>
     </form>
 </section>
 <section class="card">
