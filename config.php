@@ -46,7 +46,6 @@ const MANAGER_RECIPIENTS = [
     'it'         => [],
     'hr'         => [],
     'admin'      => [],
-    'accounting' => [],
     'other'      => [],
 ];
 const NOTIFY_ON_NEW_TICKET = true;     

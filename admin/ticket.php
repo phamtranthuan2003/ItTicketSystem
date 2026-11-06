@@ -86,12 +86,18 @@ $stmt = $pdo->prepare('SELECT t.*, a.username AS assignee_name FROM tickets t LE
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
 if (!$ticket) { http_response_code(404); exit('Không tìm thấy ticket.'); }
+if ($ticket['type'] === 'accounting') {
+    try {
+        $pdo->prepare("UPDATE tickets SET type = 'pc' WHERE id = ?")->execute([$id]);
+    } catch (Throwable) {}
+    $ticket['type'] = 'pc';
+}
 $statuses = ['new', 'in_progress', 'completed', 'rejected'];
 $priorities = ['low', 'medium', 'high'];
 $departments = ticket_departments();
 $types = ticket_types();
 $editableTypes = $types;
-if (!isset($editableTypes[$ticket['type']])) {
+if (!isset($editableTypes[$ticket['type']]) && $ticket['type'] !== 'accounting') {
     $editableTypes = [$ticket['type'] => ticket_type_label($ticket['type'])] + $editableTypes;
 }
 

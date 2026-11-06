@@ -43,7 +43,7 @@ const SMTP_PASS    = 'mat-khau-email';
 const MANAGER_RECIPIENTS = [
     'all'        => ['truongphong@ten-mien-cong-ty.vn'],   // nhận mọi ticket
     'it'         => ['it.lead@ten-mien-cong-ty.vn'],       // nhận thêm ticket loại IT
-    'hr'         => [], 'admin' => [], 'accounting' => [], 'other' => [],
+    'hr'         => [], 'admin' => [], 'other' => [],
 ];
 ```
 

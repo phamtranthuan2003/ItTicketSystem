@@ -171,6 +171,9 @@ function ticket_status_label(string $status): string
 
 function ticket_type_label(string $type): string
 {
+    if ($type === 'accounting') {
+        return 'PC';
+    }
     return [
         'pc' => 'PC',
         'laptop' => 'Laptop',
@@ -180,7 +183,6 @@ function ticket_type_label(string $type): string
         'it' => 'IT',
         'hr' => 'Nhân sự',
         'admin' => 'Hành chính',
-        'accounting' => 'Kế toán',
         'other' => 'Khác',
     ][$type] ?? $type;
 }
@@ -202,7 +204,9 @@ function page_header(string $title, bool $isAdmin = false): void
     echo '<!doctype html><html lang="vi"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<title>' . $titleEscaped . ' | Everland Group</title>';
-    echo '<link rel="stylesheet" href="' . e(app_path('/assets/css/style.css?v=everland20261106-6')) . '"></head><body class="' . e($pageClass) . '" data-app-base="' . e(APP_BASE_PATH) . '">';
+    echo '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
+    echo '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap">';
+    echo '<link rel="stylesheet" href="' . e(app_path('/assets/css/style.css?v=everland20261106-7')) . '"></head><body class="' . e($pageClass) . '" data-app-base="' . e(APP_BASE_PATH) . '">';
     echo '<header class="topbar' . ($isAdmin ? ' admin-topbar' : '') . '"><a class="brand" href="' . e(app_path('/')) . '" aria-label="Everland Group — Trang chủ">'
         . '<span class="brand-mark"><img src="' . e(app_path('/assets/img/everland-1668155348.png')) . '" alt=""></span>'
         . '<span class="brand-copy"><strong>EVERLAND GROUP</strong><small>HỆ THỐNG HỖ TRỢ NỘI BỘ</small></span></a>';

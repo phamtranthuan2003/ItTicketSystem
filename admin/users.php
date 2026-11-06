@@ -14,8 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $password = (string)($_POST['password'] ?? '');
             $requestedRole = (string)($_POST['role'] ?? 'staff');
             $role = $isSuperAdmin ? $requestedRole : 'staff';
-            if (!preg_match('/^[A-Za-z0-9._-]{3,100}$/', $username) || strlen($password) < 12 || !in_array($role, ['admin', 'staff'], true)) {
-                throw new InvalidArgumentException('Tên đăng nhập cần 3–100 ký tự hợp lệ và mật khẩu ít nhất 12 ký tự.');
+            if (!preg_match('/^[A-Za-z0-9._-]{3,100}$/', $username) || strlen($password) < 8 || !in_array($role, ['admin', 'staff'], true)) {
+                throw new InvalidArgumentException('Tên đăng nhập cần 3–100 ký tự hợp lệ và mật khẩu ít nhất 8 ký tự.');
             }
             $stmt = $pdo->prepare('INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)');
             $stmt->execute([$username, password_hash($password, PASSWORD_DEFAULT), $role]);
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'password') {
             $userId = (int)($_POST['user_id'] ?? 0);
             $password = (string)($_POST['password'] ?? '');
-            if ($userId < 1 || strlen($password) < 12) throw new InvalidArgumentException('Mật khẩu mới phải có ít nhất 12 ký tự.');
+            if ($userId < 1 || strlen($password) < 8) throw new InvalidArgumentException('Mật khẩu mới phải có ít nhất 8 ký tự.');
             $target = $pdo->prepare('SELECT username, role FROM admins WHERE id = ?');
             $target->execute([$userId]);
             $targetAccount = $target->fetch();
@@ -90,7 +90,7 @@ show_flash();
     <form method="post" class="form-grid compact">
         <?= csrf_field() ?><input type="hidden" name="action" value="create">
         <label>Tên đăng nhập<input name="username" required minlength="3" maxlength="100" pattern="[A-Za-z0-9._-]+"></label>
-        <label>Mật khẩu tạm (ít nhất 12 ký tự)<input type="password" name="password" required minlength="12" autocomplete="new-password"></label>
+        <label>Mật khẩu tạm (ít nhất 8 ký tự)<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
         <?php if ($isSuperAdmin): ?><label>Vai trò<select name="role"><option value="staff">Staff — xử lý ticket</option><option value="admin">Admin — toàn quyền</option></select></label><?php endif; ?>
         <div><button type="submit">Tạo tài khoản</button></div>
     </form>
@@ -99,7 +99,7 @@ show_flash();
 <?php foreach ($users as $user): $isProtectedAccount = $user['role'] === 'super_admin' || strcasecmp($user['username'], 'thuanpt') === 0; ?><tr><td><?= e($user['username']) ?><?= (int)$user['id'] === $admin['id'] ? ' (bạn)' : '' ?></td><td><?= $isProtectedAccount ? 'Super Admin' : e($user['role']) ?></td>
 <?php if ($isSuperAdmin): ?><td><?php if (!$isProtectedAccount && (int)$user['id'] !== $admin['id']): ?><form method="post" class="inline-form"><?= csrf_field() ?><input type="hidden" name="action" value="role"><input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>"><select name="role" aria-label="Quyền của <?= e($user['username']) ?>"><option value="staff" <?= $user['role'] === 'staff' ? 'selected' : '' ?>>Staff</option><option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>Admin</option></select><button type="submit" class="small">Lưu</button></form><?php else: ?>—<?php endif; ?></td><?php endif; ?>
 <td><?= e($user['created_at']) ?></td><td><?= e($user['last_login_at'] ?? '—') ?></td>
-<td><?php if (!$isProtectedAccount || $isSuperAdmin): ?><form method="post" class="inline-form"><?= csrf_field() ?><input type="hidden" name="action" value="password"><input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>"><input type="password" name="password" minlength="12" required placeholder="Mật khẩu mới"><button type="submit" class="small">Đổi</button></form><?php else: ?>—<?php endif; ?></td>
+<td><?php if (!$isProtectedAccount || $isSuperAdmin): ?><form method="post" class="inline-form"><?= csrf_field() ?><input type="hidden" name="action" value="password"><input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>"><input type="password" name="password" minlength="8" required placeholder="Mật khẩu mới"><button type="submit" class="small">Đổi</button></form><?php else: ?>—<?php endif; ?></td>
 <td><?php if ((int)$user['id'] !== $admin['id'] && !$isProtectedAccount): ?><form method="post" onsubmit="return confirm('Xóa tài khoản này?')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>"><button type="submit" class="danger small">Xóa</button></form><?php endif; ?></td></tr><?php endforeach; ?>
 </tbody></table></div></section>
 <?php page_footer(); ?>

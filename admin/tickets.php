@@ -31,6 +31,9 @@ if ($filters['q'] !== '') {
 }
 $filterSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 $pdo = db();
+try {
+    $pdo->exec("UPDATE tickets SET type = 'pc' WHERE type = 'accounting'");
+} catch (Throwable) {}
 $countStmt = $pdo->prepare('SELECT COUNT(*) FROM tickets t' . $filterSql);
 $countStmt->execute($params);
 $total = (int)$countStmt->fetchColumn();

@@ -4,13 +4,17 @@ require_once dirname(__DIR__) . '/includes/functions.php';
 require_admin();
 
 $pdo = db();
+try {
+    $pdo->exec("UPDATE tickets SET type = 'pc' WHERE type = 'accounting'");
+} catch (Throwable) {}
+
 $counts = ['all' => 0, 'new' => 0, 'in_progress' => 0, 'completed' => 0, 'rejected' => 0];
 foreach ($pdo->query('SELECT status, COUNT(*) AS total FROM tickets GROUP BY status') as $row) {
     $counts['all'] += (int)$row['total'];
     if (isset($counts[$row['status']])) $counts[$row['status']] = (int)$row['total'];
 }
 
-$byType = $pdo->query('SELECT type, COUNT(*) AS total FROM tickets GROUP BY type ORDER BY total DESC')->fetchAll();
+$byType = $pdo->query("SELECT type, COUNT(*) AS total FROM tickets WHERE type != 'accounting' GROUP BY type ORDER BY total DESC")->fetchAll();
 $firstMonth = new DateTimeImmutable('first day of this month 00:00:00');
 $chartStart = $firstMonth->modify('-11 months');
 $monthlyStmt = $pdo->prepare(
