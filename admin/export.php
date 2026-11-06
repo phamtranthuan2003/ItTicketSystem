@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
-require_admin();
+require_permission('tickets.export');
 
 $validStatuses = ['new', 'in_progress', 'completed', 'rejected'];
 $validTypes = array_keys(ticket_types());

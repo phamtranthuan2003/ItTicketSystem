@@ -151,14 +151,104 @@ function require_admin(): array
     ];
 }
 
-function require_admin_role(): array
+function permission_catalog(): array
+{
+    return [
+        'tickets.view' => [
+            'group' => 'Ticket',
+            'label' => 'Xem danh sách và chi tiết ticket',
+            'description' => 'Truy cập tổng quan, danh sách và nội dung ticket.',
+        ],
+        'tickets.update' => [
+            'group' => 'Ticket',
+            'label' => 'Cập nhật trạng thái, ưu tiên và ghi chú',
+            'description' => 'Cập nhật thông tin xử lý giới hạn của ticket.',
+        ],
+        'tickets.manage' => [
+            'group' => 'Ticket',
+            'label' => 'Chỉnh sửa đầy đủ ticket và gán người xử lý',
+            'description' => 'Sửa thông tin người gửi, nội dung, loại yêu cầu và người được giao.',
+        ],
+        'tickets.delete' => [
+            'group' => 'Ticket',
+            'label' => 'Xóa ticket',
+            'description' => 'Xóa ticket và các tệp đính kèm liên quan.',
+        ],
+        'tickets.export' => [
+            'group' => 'Ticket',
+            'label' => 'Xuất danh sách ticket',
+            'description' => 'Tải dữ liệu ticket dưới dạng CSV.',
+        ],
+        'accounts.view' => [
+            'group' => 'Tài khoản',
+            'label' => 'Xem và mở trang quản lý tài khoản',
+            'description' => 'Xem danh sách tài khoản trong hệ thống.',
+        ],
+        'accounts.create' => [
+            'group' => 'Tài khoản',
+            'label' => 'Tạo tài khoản',
+            'description' => 'Tạo tài khoản mới; chỉ thuanpt được chọn vai trò.',
+        ],
+        'accounts.manage_password' => [
+            'group' => 'Tài khoản',
+            'label' => 'Đổi mật khẩu tài khoản thường',
+            'description' => 'Không cho phép đổi mật khẩu tài khoản thuanpt.',
+        ],
+        'accounts.delete' => [
+            'group' => 'Tài khoản',
+            'label' => 'Xóa tài khoản thường',
+            'description' => 'Không cho phép xóa tài khoản thuanpt.',
+        ],
+    ];
+}
+
+function role_permissions(string $role): array
+{
+    $catalog = permission_catalog();
+    if ($role === 'super_admin') {
+        return array_merge(array_keys($catalog), ['accounts.assign_roles', 'permissions.manage']);
+    }
+    if (!in_array($role, ['admin', 'staff'], true)) {
+        return [];
+    }
+
+    static $permissionsByRole = [];
+    if (!array_key_exists($role, $permissionsByRole)) {
+        $stmt = db()->prepare('SELECT permission FROM role_permissions WHERE role = ? AND is_granted = 1');
+        $stmt->execute([$role]);
+        $permissionsByRole[$role] = array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    return array_values(array_intersect($permissionsByRole[$role], array_keys($catalog)));
+}
+
+function has_permission(array $user, string $permission): bool
+{
+    if (in_array($permission, ['accounts.assign_roles', 'permissions.manage'], true)) {
+        return (string)($user['role'] ?? '') === 'super_admin'
+            && strcasecmp((string)($user['username'] ?? ''), 'thuanpt') === 0;
+    }
+
+    if (!in_array($permission, role_permissions((string)($user['role'] ?? '')), true)) {
+        return false;
+    }
+
+    return true;
+}
+
+function require_permission(string $permission): array
 {
     $user = require_admin();
-    if (!in_array($user['role'], ['admin', 'super_admin'], true)) {
+    if (!has_permission($user, $permission)) {
         http_response_code(403);
         exit('Bạn không có quyền thực hiện thao tác này.');
     }
     return $user;
+}
+
+function require_admin_role(): array
+{
+    return require_permission('accounts.view');
 }
 
 function add_ticket_history(int $ticketId, ?int $adminId, string $action, string $details): void
@@ -228,9 +318,13 @@ function page_header(string $title, bool $isAdmin = false): void
             . '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="11" width="7" height="10" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg><span>Tổng quan</span></a>';
         echo '<a class="admin-nav-link' . ($currentPage === 'tickets.php' || $currentPage === 'ticket.php' || $currentPage === 'export.php' ? ' is-active' : '') . '" href="' . e(app_path('/admin/tickets.php')) . '"' . (in_array($currentPage, ['tickets.php', 'ticket.php', 'export.php'], true) ? ' aria-current="page"' : '') . '>'
             . '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.75h8l4 4V20a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5.75a2 2 0 0 1 2-2Z"/><path d="M14 4v5h5M8.5 13h7M8.5 16.5h7"/></svg><span>Tickets</span><span id="new-ticket-badge" class="badge" title="Ticket mới chưa xử lý" aria-label="Ticket mới chưa xử lý" hidden>0</span></a>';
-        if (in_array($user['role'], ['admin', 'super_admin'], true)) {
+        if (has_permission($user, 'accounts.view')) {
             echo '<a class="admin-nav-link' . ($currentPage === 'users.php' ? ' is-active' : '') . '" href="' . e(app_path('/admin/users.php')) . '"' . ($currentPage === 'users.php' ? ' aria-current="page"' : '') . '>'
                 . '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20v-1.5a6 6 0 0 1 12 0V20M16 5.2a3.5 3.5 0 0 1 0 6.6M18 14a4.5 4.5 0 0 1 3 4.25V20"/></svg><span>Tài khoản</span></a>';
+        }
+        if (has_permission($user, 'permissions.manage')) {
+            echo '<a class="admin-nav-link' . ($currentPage === 'permissions.php' ? ' is-active' : '') . '" href="' . e(app_path('/admin/permissions.php')) . '"' . ($currentPage === 'permissions.php' ? ' aria-current="page"' : '') . '>'
+                . '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3.4 8.3 8 10 4.6-1.7 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg><span>Phân quyền</span></a>';
         }
         echo '</div><div class="admin-user-menu"><span class="admin-user-avatar" aria-hidden="true">' . e(mb_strtoupper(mb_substr($user['username'], 0, 1, 'UTF-8'), 'UTF-8')) . '</span><span class="admin-user-copy"><strong>' . e($user['username']) . '</strong><small>' . e($roleLabel) . '</small></span>'
             . '<form method="post" action="' . e(app_path('/admin/logout.php')) . '" class="logout-form">' . csrf_field() .

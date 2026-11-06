@@ -2,8 +2,9 @@
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
 require_once dirname(__DIR__) . '/includes/mailer.php';
-$admin = require_admin();
-$canManageTickets = in_array($admin['role'], ['admin', 'super_admin'], true);
+$admin = require_permission('tickets.view');
+$canUpdateTickets = has_permission($admin, 'tickets.update');
+$canManageTickets = has_permission($admin, 'tickets.manage');
 $pdo = db();
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT) ?: filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
 if (!$id) { http_response_code(400); exit('Mã ticket không hợp lệ.'); }
@@ -104,7 +105,7 @@ if (!isset($editableTypes[$ticket['type']]) && $ticket['type'] !== 'accounting')
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     if (($_POST['action'] ?? '') === 'delete') {
-        if (!$canManageTickets) {
+        if (!has_permission($admin, 'tickets.delete')) {
             http_response_code(403);
             exit('Bạn không có quyền xóa ticket.');
         }
@@ -141,6 +142,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$canManageTickets) {
+        if (!$canUpdateTickets) {
+            http_response_code(403);
+            exit('Bạn không có quyền cập nhật ticket.');
+        }
         $status = (string)($_POST['status'] ?? '');
         $priority = (string)($_POST['priority'] ?? '');
         $note = trim((string)($_POST['admin_note'] ?? ''));
@@ -340,6 +345,7 @@ show_flash();
             </form>
         <?php endif; ?>
     </section>
+    <?php if ($canUpdateTickets || $canManageTickets): ?>
     <section class="card">
         <h2><?= $canManageTickets ? 'Chỉnh sửa ticket và trạng thái' : 'Cập nhật trạng thái, ưu tiên và ghi chú' ?></h2>
         <form method="post" class="form-grid">
@@ -361,6 +367,7 @@ show_flash();
             <div class="full"><button type="submit">Lưu thay đổi</button></div>
         </form>
     </section>
+    <?php endif; ?>
 </div>
 <section class="card"><h2>Lịch sử thay đổi</h2><?php if (!$history): ?><p>Chưa có thay đổi.</p><?php else: ?><ul class="history"><?php foreach ($history as $item): ?><li><strong><?= e($item['action']) ?></strong> — <?= e($item['username'] ?? 'Tài khoản đã xóa') ?> <time><?= e($item['created_at']) ?></time><div><?= e($item['details']) ?></div></li><?php endforeach; ?></ul><?php endif; ?></section>
 <?php page_footer(); ?>
