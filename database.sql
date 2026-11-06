@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS admins (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   username VARCHAR(100) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role ENUM('admin', 'staff') NOT NULL DEFAULT 'staff',
+  role ENUM('super_admin', 'admin', 'staff') NOT NULL DEFAULT 'staff',
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_login_at DATETIME NULL,
@@ -23,8 +23,16 @@ CREATE TABLE IF NOT EXISTS tickets (
   department VARCHAR(150) NOT NULL,
   contact VARCHAR(190) NOT NULL,
   email VARCHAR(190) NULL,
-  type ENUM('it', 'hr', 'admin', 'accounting', 'other') NOT NULL DEFAULT 'other',
+  type ENUM('it', 'hr', 'admin', 'accounting', 'pc', 'laptop', 'printer', 'network', 'other') NOT NULL DEFAULT 'other',
   priority ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
+  priority_score SMALLINT UNSIGNED NULL,
+  impact_scope ENUM('individual', 'department', 'company') NOT NULL DEFAULT 'individual',
+  work_ability ENUM('can_work', 'partial', 'cannot_work') NOT NULL DEFAULT 'can_work',
+  response_due_at DATETIME NULL,
+  resolution_due_at DATETIME NULL,
+  response_sla_escalated_at DATETIME NULL,
+  resolution_sla_escalated_at DATETIME NULL,
+  last_reminded_at DATETIME NULL,
   title VARCHAR(200) NOT NULL,
   description TEXT NOT NULL,
   status ENUM('new', 'in_progress', 'completed', 'rejected') NOT NULL DEFAULT 'new',
@@ -38,6 +46,8 @@ CREATE TABLE IF NOT EXISTS tickets (
   PRIMARY KEY (id),
   UNIQUE KEY uq_tickets_code (ticket_code),
   KEY idx_tickets_status_created (status, created_at),
+  KEY idx_tickets_priority_created (priority, created_at),
+  KEY idx_tickets_sla (status, response_due_at, resolution_due_at),
   KEY idx_tickets_type_priority (type, priority),
   KEY idx_tickets_assignee (assignee_id),
   KEY idx_tickets_created (created_at),
@@ -55,6 +65,20 @@ CREATE TABLE IF NOT EXISTS ticket_history (
   KEY idx_ticket_history_ticket (ticket_id, id),
   CONSTRAINT fk_history_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
   CONSTRAINT fk_history_admin FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ticket_attachments (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  ticket_id BIGINT UNSIGNED NOT NULL,
+  stored_name VARCHAR(100) NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(100) NOT NULL,
+  file_size INT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_ticket_attachments_stored_name (stored_name),
+  KEY idx_ticket_attachments_ticket (ticket_id, id),
+  CONSTRAINT fk_ticket_attachments_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS rate_limits (

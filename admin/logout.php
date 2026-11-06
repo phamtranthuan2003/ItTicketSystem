@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
 require_admin();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    redirect('/ticket/admin/');
+    redirect(app_path('/admin/'));
 }
 verify_csrf();
 $_SESSION = [];
@@ -12,4 +12,4 @@ if (ini_get('session.use_cookies')) {
     setcookie(session_name(), '', time() - 42000, $params['path'], '', (bool)$params['secure'], (bool)$params['httponly']);
 }
 session_destroy();
-redirect('/ticket/admin/login.php');
+redirect(app_path('/admin/login.php'));

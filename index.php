@@ -5,8 +5,10 @@ require_once __DIR__ . '/includes/mailer.php';
 
 $errors = [];
 $successCode = '';
-$types = ['it' => 'IT', 'hr' => 'Nhân sự', 'admin' => 'Hành chính', 'accounting' => 'Kế toán', 'other' => 'Khác'];
-$priorities = ['low' => 'Thấp', 'medium' => 'Trung bình', 'high' => 'Cao'];
+$types = ticket_types();
+$departments = ticket_departments();
+$impactScopes = ticket_impact_scopes();
+$workAbilities = ticket_work_abilities();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -19,54 +21,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'full_name' => trim((string)($_POST['full_name'] ?? '')),
         'department' => trim((string)($_POST['department'] ?? '')),
         'contact' => trim((string)($_POST['contact'] ?? '')),
-        'email' => trim((string)($_POST['email'] ?? '')),
         'type' => (string)($_POST['type'] ?? 'other'),
-        'priority' => (string)($_POST['priority'] ?? 'medium'),
+        'impact_scope' => (string)($_POST['impact_scope'] ?? ''),
+        'work_ability' => (string)($_POST['work_ability'] ?? ''),
         'title' => trim((string)($_POST['title'] ?? '')),
         'description' => trim((string)($_POST['description'] ?? '')),
     ];
     if ($data['full_name'] === '' || mb_strlen($data['full_name']) > 150) $errors[] = 'Vui lòng nhập họ tên (tối đa 150 ký tự).';
-    if ($data['department'] === '' || mb_strlen($data['department']) > 150) $errors[] = 'Vui lòng nhập phòng ban (tối đa 150 ký tự).';
-    if ($data['contact'] === '' || mb_strlen($data['contact']) > 190) $errors[] = 'Vui lòng nhập email hoặc số điện thoại.';
-    if ($data['email'] !== '' && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) $errors[] = 'Địa chỉ email không hợp lệ.';
+    if (!in_array($data['department'], $departments, true)) $errors[] = 'Vui lòng chọn phòng ban hợp lệ.';
+    if ($data['contact'] === '' || mb_strlen($data['contact']) > 190) $errors[] = 'Vui lòng nhập thông tin Zalo liên hệ (tối đa 190 ký tự).';
     if (!array_key_exists($data['type'], $types)) $errors[] = 'Loại yêu cầu không hợp lệ.';
-    if (!array_key_exists($data['priority'], $priorities)) $errors[] = 'Mức ưu tiên không hợp lệ.';
+    if (!array_key_exists($data['impact_scope'], $impactScopes)) $errors[] = 'Vui lòng chọn phạm vi ảnh hưởng hợp lệ.';
+    if (!array_key_exists($data['work_ability'], $workAbilities)) $errors[] = 'Vui lòng chọn khả năng tiếp tục làm việc hợp lệ.';
     if ($data['title'] === '' || mb_strlen($data['title']) > 200) $errors[] = 'Vui lòng nhập tiêu đề (tối đa 200 ký tự).';
     if ($data['description'] === '' || mb_strlen($data['description']) > 20000) $errors[] = 'Vui lòng nhập mô tả (tối đa 20.000 ký tự).';
+    $priorityResult = calculate_ticket_priority(
+        $data['impact_scope'],
+        $data['work_ability'],
+        $data['type'],
+        $data['department'],
+        $data['title'],
+        $data['description']
+    );
 
-    $upload = null;
-    if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] !== UPLOAD_ERR_NO_FILE) {
-        $file = $_FILES['attachment'];
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            $errors[] = 'Tải tệp lên thất bại. Vui lòng thử lại.';
-        } elseif ($file['size'] > MAX_UPLOAD_BYTES) {
-            $errors[] = 'Tệp đính kèm vượt quá 5MB.';
+    $uploads = [];
+    $fileData = $_FILES['attachment'] ?? null;
+    if (is_array($fileData) && isset($fileData['name'])) {
+        $fileCount = is_array($fileData['name']) ? count($fileData['name']) : 1;
+        if ($fileCount > 5) {
+            $errors[] = 'Bạn chỉ có thể đính kèm tối đa 5 tệp.';
         } else {
             $allowed = [
                 'jpg' => ['image/jpeg'],
+                'jpeg' => ['image/jpeg'],
                 'png' => ['image/png'],
+                'webp' => ['image/webp'],
                 'pdf' => ['application/pdf'],
                 'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
                 'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/zip'],
             ];
-            $originalName = (string)$file['name'];
-            $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-            $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
-            if (!isset($allowed[$extension]) || !in_array($mime, $allowed[$extension], true)) {
-                $errors[] = 'Định dạng tệp không được phép hoặc MIME không hợp lệ.';
-            } else {
-                $upload = [
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            for ($index = 0; $index < $fileCount; $index++) {
+                $file = [
+                    'name' => is_array($fileData['name']) ? $fileData['name'][$index] : $fileData['name'],
+                    'type' => is_array($fileData['type']) ? $fileData['type'][$index] : $fileData['type'],
+                    'tmp_name' => is_array($fileData['tmp_name']) ? $fileData['tmp_name'][$index] : $fileData['tmp_name'],
+                    'error' => is_array($fileData['error']) ? $fileData['error'][$index] : $fileData['error'],
+                    'size' => is_array($fileData['size']) ? $fileData['size'][$index] : $fileData['size'],
+                ];
+                if ($file['error'] === UPLOAD_ERR_NO_FILE) {
+                    continue;
+                }
+                if ($file['error'] !== UPLOAD_ERR_OK) {
+                    $errors[] = 'Tải tệp lên thất bại. Vui lòng thử lại.';
+                    continue;
+                }
+                if ($file['size'] > MAX_UPLOAD_BYTES) {
+                    $errors[] = 'Tệp đính kèm vượt quá 5MB.';
+                    continue;
+                }
+                $originalName = (string)$file['name'];
+                $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+                $mime = $finfo->file($file['tmp_name']);
+                if (!isset($allowed[$extension]) || !in_array($mime, $allowed[$extension], true)) {
+                    $errors[] = 'Định dạng tệp không được phép hoặc MIME không hợp lệ.';
+                    continue;
+                }
+                $uploads[] = [
                     'tmp_name' => $file['tmp_name'],
                     'original_name' => mb_substr(preg_replace('/[\r\n"\\\\]/', '_', basename($originalName)) ?? 'attachment', 0, 255),
                     'extension' => $extension,
                     'mime' => $mime,
+                    'size' => (int)$file['size'],
                 ];
             }
         }
     }
 
     if (!$errors) {
-        $savedFilePath = null;
+        $savedFilePaths = [];
         try {
             $pdo = db();
             $pdo->beginTransaction();
@@ -85,44 +118,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 http_response_code(429);
                 $errors[] = 'Bạn đã gửi quá 5 yêu cầu trong một giờ. Vui lòng thử lại sau.';
             } else {
-                $attachmentName = null;
-                if ($upload !== null) {
+                if ($uploads) {
                     $uploadDir = __DIR__ . '/uploads';
                     if (!is_dir($uploadDir) || !is_writable($uploadDir)) {
                         throw new RuntimeException('Upload directory is unavailable.');
                     }
-                    $attachmentName = bin2hex(random_bytes(20)) . '.' . $upload['extension'];
-                    if (!move_uploaded_file($upload['tmp_name'], $uploadDir . DIRECTORY_SEPARATOR . $attachmentName)) {
-                        throw new RuntimeException('Unable to move uploaded file.');
+                    foreach ($uploads as &$upload) {
+                        $upload['stored_name'] = bin2hex(random_bytes(20)) . '.' . $upload['extension'];
+                        $upload['path'] = $uploadDir . DIRECTORY_SEPARATOR . $upload['stored_name'];
+                        if (!move_uploaded_file($upload['tmp_name'], $upload['path'])) {
+                            throw new RuntimeException('Unable to move uploaded file.');
+                        }
+                        $savedFilePaths[] = $upload['path'];
                     }
-                    $savedFilePath = $uploadDir . DIRECTORY_SEPARATOR . $attachmentName;
+                    unset($upload);
                 }
+                $sla = ticket_sla_minutes($priorityResult['priority']);
                 $stmt = $pdo->prepare(
-                    'INSERT INTO tickets (ticket_code, full_name, department, contact, email, type, priority, title, description, attachment_name, attachment_original_name, ip_hash)
-                     VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                    'INSERT INTO tickets (ticket_code, full_name, department, contact, email, type, impact_scope, work_ability, priority, priority_score, response_due_at, resolution_due_at, title, description, attachment_name, attachment_original_name, ip_hash)
+                     VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, TIMESTAMPADD(MINUTE, ?, NOW()), TIMESTAMPADD(MINUTE, ?, NOW()), ?, ?, ?, ?, ?)'
                 );
                 $stmt->execute([
-                    $data['full_name'], $data['department'], $data['contact'], $data['email'] ?: null,
-                    $data['type'], $data['priority'], $data['title'], $data['description'],
-                    $attachmentName, $upload['original_name'] ?? null, $ipHash,
+                    $data['full_name'], $data['department'], $data['contact'], null,
+                    $data['type'], $data['impact_scope'], $data['work_ability'],
+                    $priorityResult['priority'], $priorityResult['score'],
+                    $sla['response'], $sla['resolution'], $data['title'], $data['description'],
+                    null, null, $ipHash,
                 ]);
                 $ticketId = (int)$pdo->lastInsertId();
-                $successCode = 'TK-' . str_pad((string)$ticketId, 6, '0', STR_PAD_LEFT);
+                $successCode = (string)$ticketId;
                 $pdo->prepare('UPDATE tickets SET ticket_code = ? WHERE id = ?')->execute([$successCode, $ticketId]);
-                $pdo->commit();
-                $savedFilePath = null;
-
-                $safeCode = e($successCode);
-                $safeTitle = e($data['title']);
-                send_ticket_email(ADMIN_EMAIL, "Ticket mới {$successCode}", "<p>Có ticket mới: <strong>{$safeCode}</strong></p><p>{$safeTitle}</p>");
-                if ($data['email'] !== '') {
-                    send_ticket_email($data['email'], "Xác nhận ticket {$successCode}", "<p>Chúng tôi đã nhận yêu cầu của bạn.</p><p>Mã ticket: <strong>{$safeCode}</strong></p><p>Tra cứu tại: " . e(app_url('track.php')) . '</p>');
+                if ($uploads) {
+                    $attachmentStmt = $pdo->prepare(
+                        'INSERT INTO ticket_attachments (ticket_id, stored_name, original_name, mime_type, file_size) VALUES (?, ?, ?, ?, ?)'
+                    );
+                    foreach ($uploads as $upload) {
+                        $attachmentStmt->execute([$ticketId, $upload['stored_name'], $upload['original_name'], $upload['mime'], $upload['size']]);
+                    }
                 }
+                $pdo->commit();
+                $savedFilePaths = [];
+
+                notify_managers_new_ticket([
+                    'id' => $ticketId,
+                    'ticket_code' => $successCode,
+                    'full_name' => $data['full_name'],
+                    'department' => $data['department'],
+                    'contact' => $data['contact'],
+                    'type' => $data['type'],
+                    'impact_scope' => $data['impact_scope'],
+                    'work_ability' => $data['work_ability'],
+                    'priority' => $priorityResult['priority'],
+                    'priority_score' => $priorityResult['score'],
+                    'title' => $data['title'],
+                    'description' => $data['description'],
+                    'attachment_original_name' => implode(', ', array_column($uploads, 'original_name')),
+                ]);
+                notify_requester_created('', $successCode);
                 send_telegram_notification("Ticket mới {$successCode}: " . $data['title']);
             }
         } catch (Throwable $exception) {
             if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
-            if ($savedFilePath !== null && is_file($savedFilePath)) unlink($savedFilePath);
+            foreach ($savedFilePaths as $savedFilePath) {
+                if (is_file($savedFilePath) && !unlink($savedFilePath)) {
+                    error_log('Ticket attachment cleanup failed after ticket creation error.');
+                }
+            }
             error_log('Ticket creation error: ' . $exception->getMessage());
             $errors[] = 'Không thể tạo ticket lúc này. Vui lòng thử lại sau.';
         }
@@ -130,8 +191,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 page_header('Gửi yêu cầu');
+?>
+<section class="brand-hero" aria-label="Everland Group">
+    <div class="brand-hero-content">
+        <p class="brand-hero-kicker">EVERLAND GROUP · INTERNAL SERVICE DESK</p>
+        <h2>Đồng hành cùng công việc của bạn</h2>
+        <p>Gửi yêu cầu hỗ trợ nhanh chóng, theo dõi tiến độ xử lý minh bạch.</p>
+        <div class="brand-hero-points"><span>Hỗ trợ nội bộ</span><span>Theo dõi ticket</span><span>Ưu tiên theo SLA</span></div>
+    </div>
+</section>
+<?php
 if ($successCode !== '') {
-    echo '<div class="alert success"><h2>Gửi yêu cầu thành công</h2><p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p><p>Hãy lưu mã này để tra cứu trạng thái.</p><a class="button" href="/ticket/track.php">Tra cứu ticket</a></div>';
+    $finalSla = ticket_sla_minutes($priorityResult['priority']);
+    echo '<div class="alert success"><h2>Gửi yêu cầu thành công</h2><p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p><p>Ưu tiên tự động: <strong>' . e(ticket_priority_label($priorityResult['priority'])) . '</strong> (' . (int)$priorityResult['score'] . ' điểm).</p><p>SLA: phản hồi trong ' . (int)$finalSla['response'] . ' phút, xử lý trong ' . (int)($finalSla['resolution'] / 60) . ' giờ.</p><p>Hãy lưu mã này để tra cứu trạng thái.</p><a class="button" href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a></div>';
 } else {
     foreach ($errors as $error) echo '<div class="alert error">' . e($error) . '</div>';
     ?>
@@ -139,16 +211,33 @@ if ($successCode !== '') {
         <?= csrf_field() ?>
         <div class="honeypot" aria-hidden="true"><label>Để trống<input name="website" tabindex="-1" autocomplete="off"></label></div>
         <label>Họ tên *<input name="full_name" required maxlength="150" value="<?= e($_POST['full_name'] ?? '') ?>"></label>
-        <label>Phòng ban *<input name="department" required maxlength="150" value="<?= e($_POST['department'] ?? '') ?>"></label>
-        <label>Điện thoại hoặc email *<input name="contact" required maxlength="190" value="<?= e($_POST['contact'] ?? '') ?>"></label>
-        <label>Email (để nhận xác nhận)<input type="email" name="email" maxlength="190" value="<?= e($_POST['email'] ?? '') ?>"></label>
-        <label>Loại yêu cầu<select name="type"><?php foreach ($types as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['type'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
-        <label>Mức độ ưu tiên<select name="priority"><?php foreach ($priorities as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['priority'] ?? 'medium') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
+        <label>Phòng ban *<select name="department" required><option value="">-- Chọn phòng ban --</option><?php foreach ($departments as $department): ?><option value="<?= e($department) ?>" <?= ($_POST['department'] ?? '') === $department ? 'selected' : '' ?>><?= e($department) ?></option><?php endforeach; ?></select></label>
+        <label>Loại yêu cầu<select name="type" required><?php foreach ($types as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['type'] ?? 'pc') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
+        <label>Zalo liên hệ *<input name="contact" required maxlength="190" placeholder="Số điện thoại hoặc tên tài khoản Zalo" value="<?= e($_POST['contact'] ?? '') ?>"></label>
+        <label>Phạm vi ảnh hưởng *<select name="impact_scope" required><option value="">-- Chọn phạm vi --</option><?php foreach ($impactScopes as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['impact_scope'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
+        <label>Có thể tiếp tục làm việc không? *<select name="work_ability" required><option value="">-- Chọn khả năng làm việc --</option><?php foreach ($workAbilities as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['work_ability'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
+        <p class="full form-hint">Mức ưu tiên được tự động tính từ phạm vi ảnh hưởng, khả năng làm việc, loại yêu cầu, phòng ban và từ khóa.</p>
         <label class="full">Tiêu đề *<input name="title" required maxlength="200" value="<?= e($_POST['title'] ?? '') ?>"></label>
         <label class="full">Mô tả chi tiết *<textarea name="description" rows="7" required maxlength="20000"><?= e($_POST['description'] ?? '') ?></textarea></label>
-        <label class="full">Đính kèm (JPG, PNG, PDF, DOCX, XLSX; tối đa 5MB)<input type="file" name="attachment" accept=".jpg,.png,.pdf,.docx,.xlsx"></label>
+        <div class="full attachment-field">
+            <label for="ticket-attachment">Đính kèm (JPG, PNG, PDF, DOCX, XLSX; tối đa 5MB)</label>
+            <div class="attachment-dropzone" id="attachment-paste-area" tabindex="0" role="button" aria-label="Vùng thêm ảnh hoặc tệp đính kèm">
+                <span class="attachment-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-4"/></svg>
+                </span>
+                <strong>Thêm ảnh hoặc tệp đính kèm</strong>
+                <span>Dán một hoặc nhiều ảnh bằng Ctrl + V, hoặc chọn tối đa 5 tệp</span>
+                <input id="ticket-attachment" type="file" name="attachment[]" accept=".jpg,.jpeg,.png,.webp,.pdf,.docx,.xlsx" multiple>
+            </div>
+            <div class="attachment-preview" id="attachment-preview" hidden>
+                <div class="attachment-preview-list" id="attachment-preview-list"></div>
+                <button type="button" class="attachment-remove" id="attachment-remove">Bỏ tất cả</button>
+            </div>
+            <p class="attachment-feedback" id="attachment-feedback" aria-live="polite">Có thể dán một hoặc nhiều ảnh bằng Ctrl + V, hoặc chọn tệp từ thiết bị.</p>
+        </div>
         <div class="full"><button type="submit">Gửi yêu cầu</button></div>
     </form>
+    <script defer src="<?= e(app_path('/assets/js/attachment-paste.js?v=3')) ?>"></script>
     <?php
 }
 page_footer();

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
 
-if (!empty($_SESSION['admin_id'])) redirect('/ticket/admin/');
+if (!empty($_SESSION['admin_id'])) redirect(app_path('/admin/'));
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -39,8 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['admin_username'] = $user['username'];
             $_SESSION['admin_role'] = $user['role'];
             $_SESSION['ticket_cursor'] = $cursor;
-            $_SESSION['new_ticket_count'] = 0;
-            redirect('/ticket/admin/');
+            redirect(app_path('/admin/'));
         }
     } catch (Throwable $exception) {
         if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
@@ -49,13 +48,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-page_header('Đăng nhập quản trị');
-if ($error !== '') echo '<div class="alert error">' . e($error) . '</div>';
 ?>
-<form method="post" class="card form-grid compact login-form">
-    <?= csrf_field() ?>
-    <label class="full">Tên đăng nhập<input name="username" required autocomplete="username" maxlength="100"></label>
-    <label class="full">Mật khẩu<input type="password" name="password" required autocomplete="current-password"></label>
-    <div class="full"><button type="submit">Đăng nhập</button></div>
-</form>
-<?php page_footer(); ?>
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Đăng nhập quản trị | Everland Group</title>
+    <link rel="stylesheet" href="<?= e(app_path('/assets/css/style.css?v=everland20261106')) ?>">
+</head>
+<body class="admin-login-page">
+    <main class="admin-login-main">
+        <section class="admin-login-card" aria-labelledby="admin-login-title">
+            <img class="admin-login-logo" src="<?= e(app_path('/assets/img/everland-1668155348.png')) ?>" alt="Everland Group">
+            <p class="admin-login-eyebrow">CỔNG QUẢN TRỊ</p>
+            <h1 id="admin-login-title">Đăng nhập</h1>
+            <p class="admin-login-subtitle">Hệ thống quản lý yêu cầu nội bộ</p>
+            <?php if ($error !== ''): ?><div class="alert error" role="alert"><?= e($error) ?></div><?php endif; ?>
+            <form method="post" class="admin-login-form">
+                <?= csrf_field() ?>
+                <label for="admin-username">Tên đăng nhập</label>
+                <input id="admin-username" name="username" required autocomplete="username" maxlength="100" autofocus>
+                <label for="admin-password">Mật khẩu</label>
+                <input id="admin-password" type="password" name="password" required autocomplete="current-password">
+                <button type="submit">Đăng nhập</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

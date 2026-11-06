@@ -4,7 +4,7 @@ require_once dirname(__DIR__) . '/includes/functions.php';
 require_admin();
 
 $validStatuses = ['new', 'in_progress', 'completed', 'rejected'];
-$validTypes = ['it', 'hr', 'admin', 'accounting', 'other'];
+$validTypes = array_merge(array_keys(ticket_types()), ['it', 'hr', 'admin', 'accounting']);
 $validPriorities = ['low', 'medium', 'high'];
 $where = [];
 $params = [];
@@ -24,15 +24,15 @@ if ($q !== '') {
     $needle = '%' . $q . '%';
     array_push($params, $needle, $needle, $needle);
 }
-$sql = 'SELECT t.ticket_code, t.full_name, t.department, t.contact, t.email, t.type, t.priority, t.title, t.description, t.status, t.admin_note, t.created_at, t.updated_at, a.username AS assignee
-        FROM tickets t LEFT JOIN admins a ON a.id = t.assignee_id' . ($where ? ' WHERE ' . implode(' AND ', $where) : '') . ' ORDER BY t.id DESC';
+$sql = 'SELECT t.ticket_code, t.full_name, t.department, t.contact, t.email, t.type, t.priority, t.priority_score, t.impact_scope, t.work_ability, t.response_due_at, t.resolution_due_at, t.title, t.description, t.status, t.admin_note, t.created_at, t.updated_at, a.username AS assignee
+        FROM tickets t LEFT JOIN admins a ON a.id = t.assignee_id' . ($where ? ' WHERE ' . implode(' AND ', $where) : '') . " ORDER BY CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, t.created_at ASC";
 $stmt = db()->prepare($sql);
 $stmt->execute($params);
 header('Content-Type: text/csv; charset=UTF-8');
 header('Content-Disposition: attachment; filename="tickets-' . date('Ymd-His') . '.csv"');
 $output = fopen('php://output', 'wb');
 fwrite($output, "\xEF\xBB\xBF");
-$columns = ['Mã ticket', 'Họ tên', 'Phòng ban', 'Liên hệ', 'Email', 'Loại', 'Ưu tiên', 'Tiêu đề', 'Mô tả', 'Trạng thái', 'Ghi chú', 'Người xử lý', 'Ngày tạo', 'Cập nhật'];
+$columns = ['Mã ticket', 'Họ tên', 'Phòng ban', 'Zalo liên hệ', 'Email', 'Loại', 'Ưu tiên', 'Điểm ưu tiên', 'Phạm vi ảnh hưởng', 'Khả năng làm việc', 'Hạn phản hồi', 'Hạn xử lý', 'Tiêu đề', 'Mô tả', 'Trạng thái', 'Ghi chú', 'Người xử lý', 'Ngày tạo', 'Cập nhật'];
 fputcsv($output, $columns, ';');
 $safeCell = static function (mixed $value): string {
     $text = (string)($value ?? '');
@@ -42,7 +42,11 @@ while ($row = $stmt->fetch()) {
     fputcsv($output, [
         $safeCell($row['ticket_code']), $safeCell($row['full_name']), $safeCell($row['department']),
         $safeCell($row['contact']), $safeCell($row['email']), ticket_type_label($row['type']),
-        ticket_priority_label($row['priority']), $safeCell($row['title']), $safeCell($row['description']),
+        ticket_priority_label($row['priority']), $safeCell($row['priority_score']),
+        ticket_impact_scopes()[$row['impact_scope']] ?? $row['impact_scope'],
+        ticket_work_abilities()[$row['work_ability']] ?? $row['work_ability'],
+        $safeCell($row['response_due_at']), $safeCell($row['resolution_due_at']),
+        $safeCell($row['title']), $safeCell($row['description']),
         ticket_status_label($row['status']), $safeCell($row['admin_note']), $safeCell($row['assignee']),
         $safeCell($row['created_at']), $safeCell($row['updated_at']),
     ], ';');

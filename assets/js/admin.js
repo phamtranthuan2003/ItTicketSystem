@@ -1,6 +1,7 @@
 (() => {
   const badge = document.getElementById('new-ticket-badge');
   const baseTitle = document.title;
+  const appBase = document.body.dataset.appBase || '';
   let audioContext;
 
   function beep() {
@@ -42,7 +43,7 @@
 
   async function poll() {
     try {
-      const response = await fetch('/ticket/admin/api_new.php', {
+      const response = await fetch(`${appBase}/admin/api_new.php`, {
         credentials: 'same-origin',
         headers: { Accept: 'application/json' },
         cache: 'no-store'
