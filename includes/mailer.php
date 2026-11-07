@@ -280,7 +280,7 @@ function notify_managers_new_ticket(array $ticket): bool
         $rows['Zalo liên hệ'] = e($ticket['contact']);
     }
     $rows['Loại'] = e(ticket_type_label((string)$ticket['type']));
-    $rows['Ưu tiên'] = $priorityHtml . (isset($ticket['priority_score']) ? ' (' . (int)$ticket['priority_score'] . ' điểm)' : '');
+    $rows['Mức độ ưu tiên'] = $priorityHtml;
     $rows['Đính kèm'] = e($ticket['attachment_original_name'] ?: 'Không có');
     $html = ticket_email_layout(
         'Ticket mới ' . $ticket['ticket_code'],

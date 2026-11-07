@@ -52,6 +52,7 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
 $query = $_GET;
+$listQuery = http_build_query($query);
 $pageUrl = static function (int $targetPage) use ($query): string {
     $params = $query;
     $params['page'] = $targetPage;
@@ -84,9 +85,9 @@ show_flash();
     <p class="ticket-list-summary">Hiển thị <?= $firstItem ?>–<?= $lastItem ?> trong <?= $total ?> ticket</p>
     <?php if (!$tickets): ?><p>Không có ticket phù hợp.</p><?php else: ?>
     <div class="table-wrap"><table><thead><tr><th>Mã</th><th>Người gửi</th><th>Phòng ban</th><th>Tiêu đề</th><th>Loại</th><th>Ưu tiên</th><th>Hạn phản hồi</th><th>Hạn xử lý</th><th>Trạng thái</th><th>Người xử lý</th><th>Ngày tạo</th><th>Thao tác</th></tr></thead><tbody>
-    <?php foreach ($tickets as $ticket): ?><tr class="<?= $ticket['status'] === 'new' ? 'is-new' : '' ?> <?= $ticket['priority'] === 'high' ? 'is-high' : '' ?>">
+    <?php foreach ($tickets as $ticket): ?><tr id="ticket-<?= (int)$ticket['id'] ?>" class="<?= $ticket['status'] === 'new' ? 'is-new' : '' ?> <?= $ticket['priority'] === 'high' ? 'is-high' : '' ?>">
         <td><?= e($ticket['ticket_code']) ?></td><td><?= e($ticket['full_name']) ?></td><td><?= e($ticket['department']) ?></td><td><?= e($ticket['title']) ?></td><td><?= e(ticket_type_label($ticket['type'])) ?></td><td class="priority-cell priority-<?= e($ticket['priority']) ?>"><?= e(ticket_priority_label($ticket['priority'])) ?></td><td><?= e($ticket['response_due_at'] ?? '—') ?></td><td><?= e($ticket['resolution_due_at'] ?? '—') ?></td><td><?= e(ticket_status_label($ticket['status'])) ?></td><td><?= e($ticket['assignee'] ?? '—') ?></td><td><?= e($ticket['created_at']) ?></td>
-        <td><div class="row-actions"><a class="button edit-button" href="<?= e(app_path('/admin/ticket.php')) ?>?id=<?= (int)$ticket['id'] ?>"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>Sửa</a><?php if (has_permission($user, 'tickets.delete')): ?><form method="post" action="<?= e(app_path('/admin/ticket.php')) ?>" class="delete-form" onsubmit="return confirm('Bạn có chắc muốn xóa ticket <?= e($ticket['ticket_code']) ?>? Hành động này không thể hoàn tác.')"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$ticket['id'] ?>"><input type="hidden" name="action" value="delete"><button type="submit" class="delete-button" aria-label="Xóa ticket <?= e($ticket['ticket_code']) ?>" title="Xóa ticket"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button></form><?php endif; ?></div></td>
+        <td><div class="row-actions"><a class="button edit-button" href="<?= e(app_path('/admin/ticket.php')) ?>?<?= e(http_build_query(['id' => (int)$ticket['id'], 'return' => $listQuery])) ?>"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>Sửa</a><?php if (has_permission($user, 'tickets.delete')): ?><form method="post" action="<?= e(app_path('/admin/ticket.php')) ?>" class="delete-form" onsubmit="return confirm('Bạn có chắc muốn xóa ticket <?= e($ticket['ticket_code']) ?>? Hành động này không thể hoàn tác.')"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$ticket['id'] ?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="return" value="<?= e($listQuery) ?>"><button type="submit" class="delete-button" aria-label="Xóa ticket <?= e($ticket['ticket_code']) ?>" title="Xóa ticket"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg></button></form><?php endif; ?></div></td>
     </tr><?php endforeach; ?></tbody></table></div>
     <?php if ($pages > 1): ?>
         <nav class="pagination" aria-label="Phân trang danh sách ticket">

@@ -8,6 +8,24 @@ $canManageTickets = has_permission($admin, 'tickets.manage');
 $pdo = db();
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT) ?: filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
 if (!$id) { http_response_code(400); exit('Mã ticket không hợp lệ.'); }
+$returnState = $_POST['return'] ?? $_GET['return'] ?? '';
+$returnParams = [];
+if (is_string($returnState) && strlen($returnState) <= 2048) {
+    parse_str($returnState, $returnParams);
+}
+$listParams = [];
+foreach (['status', 'type', 'department', 'priority', 'from', 'to', 'q', 'page'] as $key) {
+    if (!isset($returnParams[$key]) || !is_string($returnParams[$key])) {
+        continue;
+    }
+    if ($key === 'page' && !ctype_digit($returnParams[$key])) {
+        continue;
+    }
+    $listParams[$key] = $returnParams[$key];
+}
+$listQuery = http_build_query($listParams);
+$backUrl = app_path('/admin/tickets.php') . ($listQuery !== '' ? '?' . $listQuery : '') . '#ticket-' . (int)$id;
+$ticketPageUrl = app_path('/admin/ticket.php') . '?' . http_build_query(['id' => (int)$id, 'return' => $listQuery]);
 
 if (isset($_GET['preview_attachment'])) {
     $attachmentId = filter_input(INPUT_GET, 'preview_attachment', FILTER_VALIDATE_INT);
@@ -138,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log('Ticket deletion error: ' . $exception->getMessage());
             admin_flash('error', 'Không thể xóa ticket lúc này.');
         }
-        redirect(app_path('/admin/tickets.php'));
+        redirect($backUrl);
     }
 
     if (!$canManageTickets) {
@@ -151,7 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $note = trim((string)($_POST['admin_note'] ?? ''));
         if (!in_array($status, $statuses, true) || !in_array($priority, $priorities, true) || mb_strlen($note) > 10000) {
             admin_flash('error', 'Trạng thái, mức ưu tiên hoặc ghi chú không hợp lệ.');
-            redirect(app_path('/admin/ticket.php?id=' . $id));
+            redirect($ticketPageUrl);
         }
 
         $changes = [];
@@ -201,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             error_log('Staff ticket update error: ' . $exception->getMessage());
             admin_flash('error', 'Không thể cập nhật ticket lúc này.');
         }
-        redirect(app_path('/admin/ticket.php?id=' . $id));
+        redirect($ticketPageUrl);
     }
 
     $fullName = trim((string)($_POST['full_name'] ?? ''));
@@ -226,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         mb_strlen($note) > 10000
     ) {
         admin_flash('error', 'Thông tin cập nhật không hợp lệ.');
-        redirect(app_path('/admin/ticket.php?id=' . $id));
+        redirect($ticketPageUrl);
     }
     $assignee = $assigneeId === '' ? null : (int)$assigneeId;
     $assigneeName = null;
@@ -236,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $assigneeName = $assigneeCheck->fetchColumn() ?: null;
         if ($assigneeName === null) {
             admin_flash('error', 'Người xử lý được chọn không tồn tại.');
-            redirect(app_path('/admin/ticket.php?id=' . $id));
+            redirect($ticketPageUrl);
         }
     }
 
@@ -274,10 +292,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title,
         $description
     );
-    if ($ticket['priority_score'] === null || (int)$ticket['priority_score'] !== $priorityResult['score']) {
-        $historyChanges[] = 'Điểm ưu tiên tự động: '
-            . ($ticket['priority_score'] !== null ? (int)$ticket['priority_score'] : 'chưa có')
-            . ' → ' . $priorityResult['score'];
+    $previousAutomaticPriority = $ticket['priority_score'] === null
+        ? null
+        : ((int)$ticket['priority_score'] >= 10 ? 'high' : ((int)$ticket['priority_score'] >= 5 ? 'medium' : 'low'));
+    if ($previousAutomaticPriority !== $priorityResult['priority']) {
+        $historyChanges[] = 'Mức độ ưu tiên tự động: '
+            . ($previousAutomaticPriority !== null ? ticket_priority_label($previousAutomaticPriority) : 'chưa xác định')
+            . ' → ' . ticket_priority_label($priorityResult['priority']);
     }
     try {
         $pdo->beginTransaction();
@@ -319,7 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         error_log('Ticket update error: ' . $exception->getMessage());
         admin_flash('error', 'Không thể cập nhật ticket lúc này.');
     }
-    redirect(app_path('/admin/ticket.php?id=' . $id));
+    redirect($ticketPageUrl);
 }
 
 $assignees = $pdo->query('SELECT id, username FROM admins WHERE is_active = 1 ORDER BY username')->fetchAll();
@@ -351,6 +372,7 @@ if (!empty($ticket['attachment_name'])) {
 page_header('Chi tiết ticket ' . $ticket['ticket_code'], true);
 show_flash();
 ?>
+<p><a class="button" href="<?= e($backUrl) ?>">← Quay lại danh sách</a></p>
 <div class="detail-grid">
     <section class="card">
         <h2>Thông tin yêu cầu</h2>
@@ -363,7 +385,7 @@ show_flash();
             <dt>Loại</dt><dd><?= e(ticket_type_label($ticket['type'])) ?></dd>
             <dt>Phạm vi ảnh hưởng</dt><dd><?= e(ticket_impact_scopes()[$ticket['impact_scope']] ?? $ticket['impact_scope']) ?></dd>
             <dt>Khả năng làm việc</dt><dd><?= e(ticket_work_abilities()[$ticket['work_ability']] ?? $ticket['work_ability']) ?></dd>
-            <dt>Ưu tiên</dt><dd><?= e(ticket_priority_label($ticket['priority'])) ?><?= $ticket['priority_score'] !== null ? ' (' . (int)$ticket['priority_score'] . ' điểm)' : '' ?></dd>
+            <dt>Mức độ ưu tiên</dt><dd><?= e(ticket_priority_label($ticket['priority'])) ?></dd>
             <dt>Hạn phản hồi</dt><dd><?= e($ticket['response_due_at'] ?? 'Chưa thiết lập') ?></dd>
             <dt>Hạn xử lý</dt><dd><?= e($ticket['resolution_due_at'] ?? 'Chưa thiết lập') ?></dd>
             <dt>Ngày tạo</dt><dd><?= e($ticket['created_at']) ?></dd>
@@ -373,7 +395,7 @@ show_flash();
                 <?php if ($attachments || $ticket['attachment_name']): ?>
                     <ul class="ticket-attachments">
                         <?php foreach ($attachments as $attachment): ?>
-                            <?php $attachmentUrl = app_path('/admin/ticket.php') . '?id=' . (int)$id; ?>
+                            <?php $attachmentUrl = $ticketPageUrl; ?>
                             <li class="ticket-attachment">
                                 <?php if (in_array($attachmentMimes[(int)$attachment['id']] ?? '', ['image/jpeg', 'image/png', 'image/webp'], true)): ?>
                                     <a class="ticket-attachment-image-link" href="<?= e($attachmentUrl . '&preview_attachment=' . (int)$attachment['id']) ?>" target="_blank" rel="noopener">
@@ -385,7 +407,7 @@ show_flash();
                             </li>
                         <?php endforeach; ?>
                         <?php if ($ticket['attachment_name']): ?>
-                            <?php $legacyAttachmentUrl = app_path('/admin/ticket.php') . '?id=' . (int)$id; ?>
+                            <?php $legacyAttachmentUrl = $ticketPageUrl; ?>
                             <li class="ticket-attachment">
                                 <?php if ($legacyAttachmentIsImage): ?>
                                     <a class="ticket-attachment-image-link" href="<?= e($legacyAttachmentUrl . '&preview_legacy=1') ?>" target="_blank" rel="noopener">
@@ -402,7 +424,7 @@ show_flash();
         </dl>
         <?php if ($canManageTickets): ?>
             <form method="post" action="<?= e(app_path('/admin/ticket.php')) ?>" class="delete-detail-form" onsubmit="return confirm('Bạn có chắc muốn xóa ticket <?= e($ticket['ticket_code']) ?>? Hành động này không thể hoàn tác.')">
-                <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$id ?>"><input type="hidden" name="action" value="delete">
+                <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$id ?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="return" value="<?= e($listQuery) ?>">
                 <button type="submit" class="delete-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg>Xóa ticket</button>
             </form>
         <?php endif; ?>
@@ -411,7 +433,7 @@ show_flash();
     <section class="card">
         <h2><?= $canManageTickets ? 'Chỉnh sửa ticket và trạng thái' : 'Cập nhật trạng thái, ưu tiên và ghi chú' ?></h2>
         <form method="post" class="form-grid">
-            <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$id ?>">
+            <?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$id ?>"><input type="hidden" name="return" value="<?= e($listQuery) ?>">
             <?php if ($canManageTickets): ?>
                 <label class="full">Họ tên người gửi<input name="full_name" required maxlength="150" value="<?= e($ticket['full_name']) ?>"></label>
                 <label class="full">Phòng ban<select name="department" required><?php if (!in_array($ticket['department'], $departments, true)): ?><option value="<?= e($ticket['department']) ?>" selected><?= e($ticket['department']) ?></option><?php endif; ?><?php foreach ($departments as $department): ?><option value="<?= e($department) ?>" <?= $ticket['department'] === $department ? 'selected' : '' ?>><?= e($department) ?></option><?php endforeach; ?></select></label>
@@ -432,15 +454,15 @@ show_flash();
     <?php endif; ?>
 </div>
 <section class="card priority-explanation">
-    <h2>Cách tính điểm ưu tiên</h2>
-    <p>Điểm được tính từ thông tin hiện tại của ticket. Tổng điểm: <strong><?= (int)$priorityCalculation['score'] ?></strong> — tương ứng mức <?= e(ticket_priority_label($priorityCalculation['priority'])) ?> theo công thức.</p>
+    <h2>Chi tiết cách tính điểm ưu tiên</h2>
+    <p>Dựa trên thông tin hiện tại của ticket, tổng điểm là <strong><?= (int)$priorityCalculation['score'] ?></strong>, tương ứng mức <?= e(ticket_priority_label($priorityCalculation['priority'])) ?>.</p>
     <?php if ($ticket['priority_score'] !== null && (int)$ticket['priority_score'] !== $priorityCalculation['score']): ?>
         <p class="muted">Điểm đang lưu: <?= (int)$ticket['priority_score'] ?>. Nội dung dùng để tính điểm đã thay đổi; điểm sẽ được đồng bộ khi lưu ticket.</p>
     <?php elseif ($ticket['priority_score'] === null): ?>
         <p class="muted">Ticket cũ chưa lưu điểm; con số trên được tính lại từ dữ liệu hiện tại.</p>
     <?php endif; ?>
     <?php if ($ticket['priority'] !== $priorityCalculation['priority']): ?>
-        <p class="muted">Mức ưu tiên đang áp dụng là <?= e(ticket_priority_label($ticket['priority'])) ?>; mức theo điểm là <?= e(ticket_priority_label($priorityCalculation['priority'])) ?>. Mức ưu tiên có thể được điều chỉnh thủ công hoặc nâng theo SLA.</p>
+        <p class="muted">Mức ưu tiên đang áp dụng là <?= e(ticket_priority_label($ticket['priority'])) ?>; mức tính từ điểm là <?= e(ticket_priority_label($priorityCalculation['priority'])) ?>. Mức ưu tiên có thể được điều chỉnh thủ công hoặc nâng theo SLA.</p>
     <?php endif; ?>
     <div class="table-wrap">
         <table>

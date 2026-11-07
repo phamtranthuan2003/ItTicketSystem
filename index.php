@@ -196,7 +196,7 @@ page_header('Gửi yêu cầu', false, false);
 <section class="brand-hero" aria-label="Everland Group">
     <div class="brand-hero-content">
         <p class="brand-hero-kicker">INTERNAL SERVICE DESK</p>
-        <h2>Đồng hành cùng công việc của bạn</h2>
+        <h2>Hệ thống yêu cầu hỗ trợ CNTT</h2>
         <p>Gửi yêu cầu hỗ trợ nhanh chóng, theo dõi tiến độ xử lý minh bạch.</p>
         <div class="brand-hero-points"><span>Hỗ trợ nội bộ</span><span>Theo dõi ticket</span><span>Ưu tiên theo SLA</span></div>
     </div>
@@ -204,7 +204,7 @@ page_header('Gửi yêu cầu', false, false);
 <?php
 if ($successCode !== '') {
     $finalSla = ticket_sla_minutes($priorityResult['priority']);
-    echo '<div class="alert success"><h2>Gửi yêu cầu thành công</h2><p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p><p>Ưu tiên tự động: <strong>' . e(ticket_priority_label($priorityResult['priority'])) . '</strong> (' . (int)$priorityResult['score'] . ' điểm).</p><p>SLA: phản hồi trong ' . (int)$finalSla['response'] . ' phút làm việc, xử lý trong ' . (int)($finalSla['resolution'] / 60) . ' giờ làm việc.</p><p>Thời gian chỉ tính trong giờ làm việc: Thứ Hai–Thứ Sáu 8:00–17:30, Thứ Bảy 8:00–12:00.</p><p>Hãy lưu mã này để tra cứu trạng thái.</p><a class="button" href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a></div>';
+    echo '<div class="alert success"><h2>Gửi yêu cầu thành công</h2><p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p><p>Mức độ ưu tiên: <strong>' . e(ticket_priority_label($priorityResult['priority'])) . '</strong>.</p><p>SLA: phản hồi trong ' . (int)$finalSla['response'] . ' phút làm việc, xử lý trong ' . (int)($finalSla['resolution'] / 60) . ' giờ làm việc.</p><p>Thời gian chỉ tính trong giờ làm việc: Thứ Hai–Thứ Sáu 8:00–17:30, Thứ Bảy 8:00–12:00.</p><p>Hãy lưu mã này để tra cứu trạng thái.</p><a class="button" href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a></div>';
 } else {
     foreach ($errors as $error) echo '<div class="alert error">' . e($error) . '</div>';
     ?>
