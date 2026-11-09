@@ -235,7 +235,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (
         $fullName === '' || mb_strlen($fullName) > 150 ||
         ($department !== $ticket['department'] && !in_array($department, $departments, true)) ||
-        ($contact === '' && (string)$ticket['contact'] !== '') || mb_strlen($contact) > 190 ||
+        ($contact === '' && (string)$ticket['contact'] !== '') || strlen($contact) > 10 ||
+        ($contact !== '' && !preg_match('/^\d+$/', $contact)) ||
         ($type !== $ticket['type'] && !array_key_exists($type, $types)) ||
         !in_array($status, $statuses, true) ||
         !in_array($priority, $priorities, true) ||
@@ -437,7 +438,7 @@ show_flash();
             <?php if ($canManageTickets): ?>
                 <label class="full">Họ tên người gửi<input name="full_name" required maxlength="150" value="<?= e($ticket['full_name']) ?>"></label>
                 <label class="full">Phòng ban<select name="department" required><?php if (!in_array($ticket['department'], $departments, true)): ?><option value="<?= e($ticket['department']) ?>" selected><?= e($ticket['department']) ?></option><?php endif; ?><?php foreach ($departments as $department): ?><option value="<?= e($department) ?>" <?= $ticket['department'] === $department ? 'selected' : '' ?>><?= e($department) ?></option><?php endforeach; ?></select></label>
-                <label class="full">Zalo liên hệ<input name="contact" <?= $ticket['contact'] !== '' ? 'required' : '' ?> maxlength="190" value="<?= e($ticket['contact']) ?>"></label>
+                <label class="full">Zalo liên hệ<input name="contact" type="number" min="0" max="9999999999" step="1" title="Nhập tối đa 10 chữ số" <?= $ticket['contact'] !== '' ? 'required' : '' ?> value="<?= e($ticket['contact']) ?>"></label>
                 <label class="full">Loại yêu cầu<select name="type" required><?php foreach ($editableTypes as $key => $label): ?><option value="<?= e($key) ?>" <?= $ticket['type'] === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
                 <label class="full">Tiêu đề<input name="title" required maxlength="200" value="<?= e($ticket['title']) ?>"></label>
                 <label class="full">Mô tả chi tiết<textarea name="description" rows="7" required maxlength="20000"><?= e($ticket['description']) ?></textarea></label>

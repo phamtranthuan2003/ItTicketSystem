@@ -29,7 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ];
     if ($data['full_name'] === '' || mb_strlen($data['full_name']) > 150) $errors[] = 'Vui lòng nhập họ tên (tối đa 150 ký tự).';
     if (!in_array($data['department'], $departments, true)) $errors[] = 'Vui lòng chọn phòng ban hợp lệ.';
-    if ($data['contact'] === '' || mb_strlen($data['contact']) > 190) $errors[] = 'Vui lòng nhập thông tin Zalo liên hệ (tối đa 190 ký tự).';
+    if ($data['contact'] === '' || strlen($data['contact']) > 10 || !preg_match('/^\d+$/', $data['contact'])) {
+        $errors[] = 'Vui lòng nhập thông tin Zalo liên hệ (tối đa 10 số).';
+    }
     if (!array_key_exists($data['type'], $types)) $errors[] = 'Loại yêu cầu không hợp lệ.';
     if (!array_key_exists($data['impact_scope'], $impactScopes)) $errors[] = 'Vui lòng chọn phạm vi ảnh hưởng hợp lệ.';
     if (!array_key_exists($data['work_ability'], $workAbilities)) $errors[] = 'Vui lòng chọn khả năng tiếp tục làm việc hợp lệ.';
@@ -214,7 +216,7 @@ if ($successCode !== '') {
         <label>Họ tên *<input name="full_name" required maxlength="150" value="<?= e($_POST['full_name'] ?? '') ?>"></label>
         <label>Phòng ban *<select name="department" required><option value="">-- Chọn phòng ban --</option><?php foreach ($departments as $department): ?><option value="<?= e($department) ?>" <?= ($_POST['department'] ?? '') === $department ? 'selected' : '' ?>><?= e($department) ?></option><?php endforeach; ?></select></label>
         <label>Loại yêu cầu<select name="type" required><?php foreach ($types as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['type'] ?? 'pc') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
-        <label>Zalo liên hệ *<input name="contact" required maxlength="190" placeholder="Số điện thoại hoặc tên tài khoản Zalo" value="<?= e($_POST['contact'] ?? '') ?>"></label>
+        <label>Zalo liên hệ *<input name="contact" type="number" min="0" max="9999999999" step="1" title="Nhập tối đa 10 chữ số" required placeholder="Nhập số điện thoại" value="<?= e($_POST['contact'] ?? '') ?>"></label>
         <label>Phạm vi ảnh hưởng *<select name="impact_scope" required><option value="">-- Chọn phạm vi --</option><?php foreach ($impactScopes as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['impact_scope'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
         <label>Có thể tiếp tục làm việc không? *<select name="work_ability" required><option value="">-- Chọn khả năng làm việc --</option><?php foreach ($workAbilities as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['work_ability'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
         <p class="full form-hint">Mức ưu tiên được tự động tính từ phạm vi ảnh hưởng, khả năng làm việc, loại yêu cầu, phòng ban và từ khóa.</p>
