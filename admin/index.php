@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
-require_permission('tickets.view');
+$user = require_permission('tickets.view');
 
 $pdo = db();
 try {
@@ -37,6 +37,22 @@ foreach ($pdo->query('SELECT department, COUNT(*) AS total FROM tickets GROUP BY
 }
 $totalByDepartment = array_sum($byDepartmentCounts);
 
+$currentYear = (int)(new DateTimeImmutable('now'))->format('Y');
+$reportStartYear = max(1, $currentYear - 2);
+$reportMonths = [
+    1 => 'Tháng 1',
+    2 => 'Tháng 2',
+    3 => 'Tháng 3',
+    4 => 'Tháng 4',
+    5 => 'Tháng 5',
+    6 => 'Tháng 6',
+    7 => 'Tháng 7',
+    8 => 'Tháng 8',
+    9 => 'Tháng 9',
+    10 => 'Tháng 10',
+    11 => 'Tháng 11',
+    12 => 'Tháng 12',
+];
 $firstMonth = new DateTimeImmutable('first day of this month 00:00:00');
 $nextMonth = $firstMonth->modify('+1 month');
 $monthEnd = $nextMonth->modify('-1 day');
@@ -88,6 +104,27 @@ for ($offset = 0; $offset < 12; $offset++) {
 $maxMonthly = max(1, $maxMonthly);
 page_header('Tổng quan', true);
 ?>
+<?php if (has_permission($user, 'tickets.export')): ?>
+    <section class="card dashboard-export-card">
+        <form method="get" action="<?= e(app_path('/admin/export_dashboard.php')) ?>" class="dashboard-export-form">
+            <label for="dashboard-export-month">Tháng xuất báo cáo
+                <select id="dashboard-export-month" name="month_number" required>
+                    <?php foreach ($reportMonths as $monthNumber => $monthLabel): ?>
+                        <option value="<?= $monthNumber ?>" <?= $monthNumber === (int)$firstMonth->format('n') ? 'selected' : '' ?>><?= e($monthLabel) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <label for="dashboard-export-year">Năm
+                <select id="dashboard-export-year" name="year" required>
+                    <?php for ($year = $currentYear; $year >= $reportStartYear; $year--): ?>
+                        <option value="<?= $year ?>" <?= $year === $currentYear ? 'selected' : '' ?>><?= $year ?></option>
+                    <?php endfor; ?>
+                </select>
+            </label>
+            <button type="submit">Xuất báo cáo Excel</button>
+        </form>
+    </section>
+<?php endif; ?>
 <section class="stats">
     <a class="stat" href="<?= e(app_path('/admin/tickets.php')) ?>" title="Xem tất cả ticket">
         <span>Tổng ticket</span>
