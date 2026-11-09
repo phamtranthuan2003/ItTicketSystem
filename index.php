@@ -221,7 +221,7 @@ if ($successCode !== '') {
         <label class="full">Tiêu đề *<input name="title" required maxlength="200" value="<?= e($_POST['title'] ?? '') ?>"></label>
         <label class="full">Mô tả chi tiết *<textarea name="description" rows="7" required maxlength="20000"><?= e($_POST['description'] ?? '') ?></textarea></label>
         <div class="full attachment-field">
-            <label for="ticket-attachment">Đính kèm (JPG, PNG, PDF, DOCX, XLSX; tối đa 5MB)</label>
+            <label for="ticket-attachment">Đính kèm (JPG, PNG, PDF, DOCX, XLSX. Tối đa 5MB)</label>
             <div class="attachment-dropzone" id="attachment-paste-area" tabindex="0" role="button" aria-label="Vùng thêm ảnh hoặc tệp đính kèm">
                 <span class="attachment-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v4A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-4"/></svg>

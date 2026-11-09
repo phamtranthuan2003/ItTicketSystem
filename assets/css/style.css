@@ -143,6 +143,7 @@ h2 { color: #203d59; font-size: 1.18rem; margin: 0 0 16px; }
 .track-detail-item:nth-last-child(-n+3) { border-bottom: 0; }
 .track-detail-item > span { color: var(--muted); font-size: .77rem; font-weight: 600; }
 .track-detail-item > strong { color: #244661; font-size: .91rem; overflow-wrap: anywhere; }
+.track-queue-line { display: block; }
 .track-detail-item .track-priority.priority-high { color: #ad302a; }
 .track-detail-item .track-priority.priority-medium { color: #96620d; }
 .track-detail-item .track-priority.priority-low { color: #287044; }

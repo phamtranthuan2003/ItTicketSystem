@@ -4,6 +4,8 @@ require_once __DIR__ . '/includes/functions.php';
 
 $ticket = null;
 $error = '';
+$responseUpdatedAt = null;
+$inProgressTickets = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $code = strtoupper(trim((string)($_POST['ticket_code'] ?? '')));
@@ -18,7 +20,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare('SELECT id, ticket_code, status, title, description, type, priority, response_due_at, resolution_due_at, created_at, updated_at, admin_note FROM tickets WHERE ticket_code = ? LIMIT 1');
         $stmt->execute([$code]);
         $ticket = $stmt->fetch() ?: null;
-        if (!$ticket) $error = 'Không tìm thấy ticket với thông tin đã nhập.';
+        if (!$ticket) {
+            $error = 'Không tìm thấy ticket với thông tin đã nhập.';
+        } else {
+            $inProgressStmt = $pdo->query(
+                "SELECT ticket_code, priority FROM tickets
+                 WHERE status = 'in_progress'
+                 ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
+                          CAST(ticket_code AS UNSIGNED), id"
+            );
+            $inProgressTickets = $inProgressStmt->fetchAll();
+
+            if (!empty($ticket['admin_note'])) {
+                $responseStmt = $pdo->prepare(
+                    "SELECT created_at FROM ticket_history
+                     WHERE ticket_id = ? AND details LIKE ?
+                     ORDER BY id DESC LIMIT 1"
+                );
+                $responseStmt->execute([(int)$ticket['id'], '%Ghi chú phản hồi:%']);
+                $responseDate = $responseStmt->fetchColumn();
+                if ($responseDate) {
+                    $responseUpdatedAt = (new DateTimeImmutable((string)$responseDate))->format('d/m/Y H:i');
+                }
+            }
+        }
     }
 }
 
@@ -88,8 +113,19 @@ page_header('Tra cứu ticket', false, false);
                 <strong><?= e($ticket['created_at']) ?></strong>
             </div>
             <div class="track-detail-item">
-                <span>Hạn phản hồi</span>
-                <strong><?= e($ticket['response_due_at'] ?? 'Chưa thiết lập') ?></strong>
+                <span>Hàng đợi chờ xử lý</span>
+                <strong>
+                    <?php if ($inProgressTickets): ?>
+                        <?php foreach ($inProgressTickets as $queuedTicket): ?>
+                            <span class="track-queue-line"><?= e(
+                                'Đang xử lý ticket ' . $queuedTicket['ticket_code']
+                                . ' - mức độ ' . ticket_priority_label((string)$queuedTicket['priority'])
+                            ) ?></span>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        Không có ticket đang xử lý
+                    <?php endif; ?>
+                </strong>
             </div>
             <div class="track-detail-item">
                 <span>Hạn xử lý</span>
@@ -97,7 +133,7 @@ page_header('Tra cứu ticket', false, false);
             </div>
             <div class="track-detail-item">
                 <span>Thời hạn xử lý (SLA giờ làm việc)</span>
-                <strong><?= ticket_sla_hours($ticket['priority']) ?> tiếng làm việc</strong>
+                <strong> Trong <?= ticket_sla_hours($ticket['priority']) ?> tiếng làm việc</strong>
             </div>
         </div>
 
@@ -114,7 +150,7 @@ page_header('Tra cứu ticket', false, false);
         <?php if (!empty($ticket['admin_note'])): ?>
             <div class="track-note">
                 <span class="track-note-icon" aria-hidden="true">i</span>
-                <div><strong>Phản hồi từ bộ phận hỗ trợ</strong><p class="preserve-lines"><?= e($ticket['admin_note']) ?></p></div>
+                <div><strong>Phản hồi từ bộ phận hỗ trợ<?= $responseUpdatedAt !== null ? ' (' . e($responseUpdatedAt) . ')' : '' ?></strong><p class="preserve-lines"><?= e($ticket['admin_note']) ?></p></div>
             </div>
         <?php endif; ?>
     </section>
