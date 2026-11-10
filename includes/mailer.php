@@ -178,7 +178,7 @@ function smtp_send_mail(array $recipients, string $subject, string $html): bool
         return false;
     }
     if (SMTP_USER === '' || SMTP_PASS === '') {
-        error_log('Ticket mail error (smtp): SMTP_USER / SMTP_PASS chưa điền trong config.php.');
+        error_log('Ticket mail error (smtp): SMTP_USER / SMTP_PASS environment variables are not configured.');
         return false;
     }
     try {

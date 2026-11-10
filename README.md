@@ -8,7 +8,7 @@
 1. Cài XAMPP có PHP 8.x, Apache và MySQL/MariaDB. Mở XAMPP Control Panel, nhấn **Start** tại Apache và MySQL.
 2. Sao chép toàn bộ thư mục `ticket` vào `C:\xampp\htdocs\ticket`.
 3. Mở `http://localhost/phpmyadmin`, chọn **Import**, chọn `database.sql`, rồi nhấn **Import/Go**. SQL tạo database `internal_tickets` và các bảng cần thiết.
-4. Mở `config.php`, cập nhật `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` theo cấu hình MySQL trên máy. Đổi `APP_KEY` thành chuỗi bí mật ngẫu nhiên dài tối thiểu 32 ký tự. Ví dụ tạo bằng PHP CLI: `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`.
+4. Mở `config.php`, cập nhật `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS` theo cấu hình MySQL trên máy. Đổi `APP_KEY` thành chuỗi bí mật ngẫu nhiên dài tối thiểu 32 ký tự. Ví dụ tạo bằng PHP CLI: `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`. Không lưu mật khẩu email hoặc bí mật triển khai trong mã nguồn.
 5. Đảm bảo thư mục `uploads` có quyền ghi bởi Apache. Tệp được lưu trong thư mục này khi gửi ticket và admin có thể xem ảnh trong chi tiết ticket; truy cập web trực tiếp vào thư mục upload bị chặn. Giữ `uploads/.htaccess` đúng chỗ, **không** chép ra thư mục gốc `ticket` (nó chặn mọi file PHP). Sau khi import xong, xóa hoặc chuyển `database.sql` ra ngoài `htdocs`.
 6. Truy cập `http://localhost/ticket/` để gửi ticket; trang quản trị tại `http://localhost/ticket/admin/`.
 7. Đăng nhập ban đầu: **admin / ChangeMe123!**. Vào **Tài khoản**, đổi mật khẩu admin sang mật khẩu riêng mạnh và không dùng lại mật khẩu này. Tạo thêm tài khoản staff nếu cần.
@@ -34,13 +34,16 @@ Thư viện PHPMailer 7.x đã có sẵn trong `includes/PHPMailer/` — **khôn
 - Có ticket mới → quản lý trong `MANAGER_RECIPIENTS['all']` + quản lý theo loại ticket. Ticket ưu tiên Cao có tiêu đề `[KHẨN]`.
 - Ticket đổi trạng thái / mức ưu tiên / người xử lý → cùng nhóm quản lý (chỉ sửa ghi chú thì không gửi).
 
-### 2.1. Điền `config.php`
+### 2.1. Cấu hình SMTP
+
+Tài khoản và mật khẩu SMTP được đọc từ file `.env` ở thư mục gốc dự án (không lưu trong `config.php`). Tạo file này bằng cách sao chép `.env.example` thành `.env`, rồi nhập `SMTP_USER` và `SMTP_PASS`. `.env` đã được Git bỏ qua; chỉ commit `.env.example` với giá trị mẫu, tuyệt đối không commit `.env`. Có thể dùng biến môi trường Windows thay thế; các biến môi trường hệ thống có độ ưu tiên cao hơn giá trị trong `.env`. Nếu đổi `.env`, khởi động lại Apache để áp dụng.
+
+Đặt secret Graph (nếu dùng) trong `M365_CLIENT_SECRET` của cùng file `.env`, không ghi trực tiếp vào mã nguồn.
 
 ```php
 const APP_BASE_URL = 'http://192.168.1.10';         // IP máy chủ XAMPP — để link "Mở ticket" bấm được
 const MAIL_DRIVER  = 'smtp';                         // đã đặt sẵn
-const SMTP_USER    = 'ticket@ten-mien-cong-ty.vn';   // email Office 365 dùng để gửi
-const SMTP_PASS    = 'mat-khau-email';
+// SMTP_USER và SMTP_PASS được đọc từ biến môi trường Windows.
 const MANAGER_RECIPIENTS = [
     'all'        => ['truongphong@ten-mien-cong-ty.vn'],   // nhận mọi ticket
     'it'         => ['it.lead@ten-mien-cong-ty.vn'],       // nhận thêm ticket loại IT
@@ -68,7 +71,7 @@ C:\xampp\php\php.exe C:\xampp\htdocs\ticket\tools\test_mail.php ban@ten-mien-con
 
 | Thông báo lỗi | Nguyên nhân / cách xử lý |
 |---|---|
-| `SMTP_USER / SMTP_PASS chưa điền` | Điền 2 dòng này trong `config.php`. |
+| `SMTP_USER / SMTP_PASS environment variables are not configured` | Cấu hình hai biến môi trường Windows cho tài khoản chạy Apache, rồi khởi động lại Apache. |
 | `Could not authenticate` / `535 5.7.3` | Sai email/mật khẩu, hoặc tài khoản bị chặn đăng nhập. |
 | `5.7.139 ... SmtpClientAuthentication is disabled` | Chưa làm bước 2.2 (mục 1 hoặc 2). |
 | `5.7.139 ... security defaults` hoặc `5.7.30 Basic authentication is not supported` | Tenant chặn đăng nhập SMTP bằng mật khẩu → chuyển sang mục 2b. |
@@ -79,7 +82,7 @@ Mọi lỗi gửi mail được ghi vào PHP error log (`C:\xampp\php\logs\php_e
 
 **Lưu ý thời hạn:** Microsoft sẽ tắt mặc định đăng nhập SMTP bằng mật khẩu (Basic Auth) cho tenant hiện có từ cuối tháng 12/2026; admin vẫn bật lại được, việc gỡ bỏ hẳn sẽ được công bố trong nửa cuối 2027. Khi đó chuyển sang mục 2b.
 
-**Bảo mật:** `config.php` chứa mật khẩu email — không gửi file này qua chat/email, không đưa lên Git. Nên dùng một hộp thư riêng cho hệ thống (shared mailbox có đặt mật khẩu hoặc tài khoản chuyên gửi), không dùng email cá nhân.
+**Bảo mật:** Không lưu thông tin xác thực email trong mã nguồn. Nếu mật khẩu từng được commit hoặc push, hãy đổi mật khẩu ngay; xóa khỏi file ở commit mới không xóa nó khỏi lịch sử Git. Nên dùng một hộp thư riêng cho hệ thống (shared mailbox có đặt mật khẩu hoặc tài khoản chuyên gửi), không dùng email cá nhân.
 
 ## 2b. Dự phòng: Office 365 qua Microsoft Graph (OAuth)
 
@@ -125,9 +128,10 @@ Quyền có thể mất 30 phút – 2 giờ để có hiệu lực.
 const MAIL_DRIVER = 'graph';
 const M365_TENANT_ID = '<Directory (tenant) ID>';
 const M365_CLIENT_ID = '<Application (client) ID>';
-const M365_CLIENT_SECRET = '<Client secret Value>';
 const M365_SENDER = 'ticket@ten-mien-cong-ty.vn';
 ```
+
+`M365_CLIENT_SECRET` cũng phải được cấu hình dưới dạng biến môi trường Windows cho tài khoản chạy Apache; không đặt secret trực tiếp trong file PHP.
 
 ### 2b.5. Kiểm tra
 
