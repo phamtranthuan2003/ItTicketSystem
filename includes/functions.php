@@ -17,8 +17,10 @@ function redirect(string $path): never
 
 function app_url(string $path = ''): string
 {
-    $base = APP_BASE_URL !== '' ? rtrim(APP_BASE_URL, '/') : '';
-    return $base . app_path($path);
+    if (APP_BASE_URL !== '') {
+        return rtrim(APP_BASE_URL, '/') . '/' . ltrim($path, '/');
+    }
+    return app_path($path);
 }
 
 function app_path(string $path = ''): string

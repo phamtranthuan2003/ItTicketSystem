@@ -6,9 +6,19 @@ $ticket = null;
 $error = '';
 $responseUpdatedAt = null;
 $inProgressTickets = [];
+$lookupCode = '';
+$shouldLookup = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
-    $code = strtoupper(trim((string)($_POST['ticket_code'] ?? '')));
+    $lookupCode = trim((string)($_POST['ticket_code'] ?? ''));
+    $shouldLookup = true;
+} elseif (isset($_GET['ticket_code'])) {
+    $lookupCode = trim((string)$_GET['ticket_code']);
+    $shouldLookup = true;
+}
+
+if ($shouldLookup) {
+    $code = strtoupper($lookupCode);
     if (preg_match('/^TK-(\d+)$/', $code, $legacyMatch)) {
         $code = ltrim($legacyMatch[1], '0');
         $code = $code !== '' ? $code : '0';
@@ -66,7 +76,7 @@ page_header('Tra cứu ticket', false, false);
         <div class="track-search-controls">
             <div class="track-code-input">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.75h8l4 4V20a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5.75a2 2 0 0 1 2-2Z"/><path d="M14 4v5h5M8.5 13h7M8.5 16.5h5"/></svg>
-                <input id="ticket-code-input" name="ticket_code" required inputmode="numeric" pattern="[0-9]+" placeholder="Nhập mã, ví dụ 123" value="<?= e($_POST['ticket_code'] ?? '') ?>">
+                <input id="ticket-code-input" name="ticket_code" required inputmode="numeric" pattern="[0-9]+" placeholder="Nhập mã, ví dụ 123" value="<?= e($lookupCode) ?>">
             </div>
             <button type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4.5 4.5"/></svg>Tra cứu</button>
         </div>

@@ -379,7 +379,7 @@ function notify_requester_created(string $email, array $ticket): bool
             'Hạn xử lý' => e((string)$ticket['resolution_due_at']),
             'Tệp đính kèm' => e((string)($ticket['attachment_original_name'] ?: 'Không có')),
         ],
-        app_url('track.php'),
+        app_url('track.php?' . http_build_query(['ticket_code' => $ticketCode])),
         'Tra cứu ticket',
         '<p style="margin:14px 0 4px;color:#64748b">Mô tả:</p><div style="background:#f7f9fb;padding:10px;border-radius:5px">'
             . nl2br(e($description)) . '</div>'
