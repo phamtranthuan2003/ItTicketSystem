@@ -268,7 +268,7 @@ $titleRow = $addRow([
 $overviewMerges[] = 'A' . $titleRow . ':D' . $titleRow;
 $subRow = $addRow([$makeCell(
     's',
-    'Thống kê và danh sách ticket theo tháng được chọn; biểu đồ cột hiển thị 12 tháng đến kỳ báo cáo'
+    'Số liệu tổng quan, biểu đồ và ticket tháng'
         . ' (' . $monthStart->format('d/m/Y') . ' - ' . $monthEnd->format('d/m/Y') . ')'
         . '   |   Ngày xuất: ' . date('d/m/Y H:i'),
     ST_SUB
