@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'full_name' => trim((string)($_POST['full_name'] ?? '')),
         'department' => trim((string)($_POST['department'] ?? '')),
         'contact' => trim((string)($_POST['contact'] ?? '')),
+        'email' => trim((string)($_POST['email'] ?? '')),
         'type' => (string)($_POST['type'] ?? 'pc'),
         'impact_scope' => (string)($_POST['impact_scope'] ?? ''),
         'work_ability' => (string)($_POST['work_ability'] ?? ''),
@@ -31,6 +32,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($data['department'], $departments, true)) $errors[] = 'Vui lòng chọn phòng ban hợp lệ.';
     if ($data['contact'] === '' || strlen($data['contact']) > 10 || !preg_match('/^\d+$/', $data['contact'])) {
         $errors[] = 'Vui lòng nhập thông tin Zalo liên hệ (tối đa 10 số).';
+    }
+    if (
+        $data['email'] === ''
+        || strlen($data['email']) > 190
+        || filter_var($data['email'], FILTER_VALIDATE_EMAIL) === false
+    ) {
+        $errors[] = 'Vui lòng nhập địa chỉ email hợp lệ (tối đa 190 ký tự).';
     }
     if (!array_key_exists($data['type'], $types)) $errors[] = 'Loại yêu cầu không hợp lệ.';
     if (!array_key_exists($data['impact_scope'], $impactScopes)) $errors[] = 'Vui lòng chọn phạm vi ảnh hưởng hợp lệ.';
@@ -142,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
                 );
                 $stmt->execute([
-                    $data['full_name'], $data['department'], $data['contact'], null,
+                    $data['full_name'], $data['department'], $data['contact'], $data['email'] !== '' ? $data['email'] : null,
                     $data['type'], $data['impact_scope'], $data['work_ability'],
                     $priorityResult['priority'], $priorityResult['score'],
                     $deadlines['response']->format('Y-m-d H:i:s'), $deadlines['resolution']->format('Y-m-d H:i:s'),
@@ -177,7 +185,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'description' => $data['description'],
                     'attachment_original_name' => implode(', ', array_column($uploads, 'original_name')),
                 ]);
-                notify_requester_created('', $successCode);
+                notify_requester_created($data['email'], [
+                    'ticket_code' => $successCode,
+                    'full_name' => $data['full_name'],
+                    'department' => $data['department'],
+                    'contact' => $data['contact'],
+                    'type' => $data['type'],
+                    'impact_scope' => $data['impact_scope'],
+                    'work_ability' => $data['work_ability'],
+                    'priority' => $priorityResult['priority'],
+                    'title' => $data['title'],
+                    'description' => $data['description'],
+                    'response_due_at' => $deadlines['response']->format('Y-m-d H:i:s'),
+                    'resolution_due_at' => $deadlines['resolution']->format('Y-m-d H:i:s'),
+                    'attachment_original_name' => implode(', ', array_column($uploads, 'original_name')),
+                ]);
                 send_telegram_notification("Ticket mới {$successCode}: " . $data['title']);
             }
         } catch (Throwable $exception) {
@@ -217,6 +239,7 @@ if ($successCode !== '') {
         <label>Phòng ban *<select name="department" required><option value="">-- Chọn phòng ban --</option><?php foreach ($departments as $department): ?><option value="<?= e($department) ?>" <?= ($_POST['department'] ?? '') === $department ? 'selected' : '' ?>><?= e($department) ?></option><?php endforeach; ?></select></label>
         <label>Loại yêu cầu<select name="type" required><?php foreach ($types as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['type'] ?? 'pc') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
         <label>Zalo liên hệ *<input name="contact" type="text" inputmode="numeric" pattern="[0-9]{1,10}" maxlength="10" title="Nhập tối đa 10 chữ số" required placeholder="Nhập số điện thoại" value="<?= e($_POST['contact'] ?? '') ?>"></label>
+        <label>Email nhận thông tin ticket *<input name="email" type="email" required maxlength="190" autocomplete="email" placeholder="Nhập địa chỉ email" value="<?= e($_POST['email'] ?? '') ?>"></label>
         <label>Phạm vi ảnh hưởng *<select name="impact_scope" required><option value="">-- Chọn phạm vi --</option><?php foreach ($impactScopes as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['impact_scope'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
         <label>Có thể tiếp tục làm việc không? *<select name="work_ability" required><option value="">-- Chọn khả năng làm việc --</option><?php foreach ($workAbilities as $key => $label): ?><option value="<?= e($key) ?>" <?= ($_POST['work_ability'] ?? '') === $key ? 'selected' : '' ?>><?= e($label) ?></option><?php endforeach; ?></select></label>
         <p class="full form-hint">Mức ưu tiên được tự động tính từ phạm vi ảnh hưởng, khả năng làm việc, loại yêu cầu, phòng ban và từ khóa.</p>

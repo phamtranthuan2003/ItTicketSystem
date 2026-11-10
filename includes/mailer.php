@@ -352,19 +352,39 @@ function notify_managers_ticket_reminder(array $ticket, int $intervalHours): boo
     return send_ticket_email($to, $subject, $html, ['importance' => $ticket['priority'] === 'high' ? 'high' : 'normal']);
 }
 
-/** Email xác nhận cho người gửi ticket. */
-function notify_requester_created(string $email, string $ticketCode): bool
+/** Gửi email xác nhận kèm thông tin ticket cho người gửi và hộp thư IT. */
+function notify_requester_created(string $email, array $ticket): bool
 {
     if (!NOTIFY_REQUESTER || $email === '') {
         return false;
     }
+    $description = (string)($ticket['description'] ?? '');
+    if (mb_strlen($description) > 2000) {
+        $description = mb_substr($description, 0, 2000) . '…';
+    }
+    $ticketCode = (string)$ticket['ticket_code'];
     $html = ticket_email_layout(
         'Chúng tôi đã nhận yêu cầu của bạn',
-        ['Mã ticket' => '<strong>' . e($ticketCode) . '</strong>'],
+        [
+            'Mã ticket' => '<strong>' . e($ticketCode) . '</strong>',
+            'Người gửi' => e((string)$ticket['full_name']),
+            'Phòng ban' => e((string)$ticket['department']),
+            'Zalo liên hệ' => e((string)$ticket['contact']),
+            'Loại yêu cầu' => e(ticket_type_label((string)$ticket['type'])),
+            'Phạm vi ảnh hưởng' => e(ticket_impact_scopes()[(string)$ticket['impact_scope']] ?? ''),
+            'Khả năng làm việc' => e(ticket_work_abilities()[(string)$ticket['work_ability']] ?? ''),
+            'Mức độ ưu tiên' => e(ticket_priority_label((string)$ticket['priority'])),
+            'Tiêu đề' => e((string)$ticket['title']),
+            'Hạn phản hồi' => e((string)$ticket['response_due_at']),
+            'Hạn xử lý' => e((string)$ticket['resolution_due_at']),
+            'Tệp đính kèm' => e((string)($ticket['attachment_original_name'] ?: 'Không có')),
+        ],
         app_url('track.php'),
-        'Tra cứu ticket'
+        'Tra cứu ticket',
+        '<p style="margin:14px 0 4px;color:#64748b">Mô tả:</p><div style="background:#f7f9fb;padding:10px;border-radius:5px">'
+            . nl2br(e($description)) . '</div>'
     );
-    return send_ticket_email($email, 'Xác nhận ticket ' . $ticketCode, $html);
+    return send_ticket_email([$email, SMTP_USER], 'Xác nhận ticket ' . $ticketCode, $html);
 }
 
 /* ------------------------------- Telegram -------------------------------- */
