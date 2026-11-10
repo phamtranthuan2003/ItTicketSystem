@@ -36,36 +36,26 @@ if (!$monthStart || $monthStart->format('Y-m') !== $monthValue) {
 }
 $nextMonth = $monthStart->modify('+1 month');
 $monthEnd = $nextMonth->modify('-1 day');
-$dashboardMonthStart = new DateTimeImmutable('first day of this month 00:00:00');
-$dashboardNextMonth = $dashboardMonthStart->modify('+1 month');
-$chartStart = $dashboardMonthStart->modify('-11 months');
+$chartStart = $monthStart->modify('-11 months');
 $pdo = db();
 
 /* ------------------------------------------------------------------ */
 /* 2. Truy vấn dữ liệu                                                 */
 /* ------------------------------------------------------------------ */
 $statusKeys = ['new', 'in_progress', 'completed', 'rejected'];
-$dashboardStatusCounts = array_fill_keys($statusKeys, 0);
-$statusStmt = $pdo->query('SELECT status, COUNT(*) AS total FROM tickets GROUP BY status');
+$statusCounts = array_fill_keys($statusKeys, 0);
+$statusStmt = $pdo->prepare(
+    'SELECT status, COUNT(*) AS total FROM tickets WHERE created_at >= ? AND created_at < ? GROUP BY status'
+);
+$statusStmt->execute([$monthStart->format('Y-m-d H:i:s'), $nextMonth->format('Y-m-d H:i:s')]);
 foreach ($statusStmt->fetchAll() as $row) {
-    if (isset($dashboardStatusCounts[$row['status']])) {
-        $dashboardStatusCounts[$row['status']] = (int)$row['total'];
+    if (isset($statusCounts[$row['status']])) {
+        $statusCounts[$row['status']] = (int)$row['total'];
     }
 }
-$totalStmt = $pdo->query('SELECT COUNT(*) FROM tickets');
-$dashboardTotal = (int)$totalStmt->fetchColumn();
-$dashboardMonthStmt = $pdo->prepare(
-    "SELECT COUNT(*) AS total, SUM(status = 'completed') AS completed
-     FROM tickets WHERE created_at >= ? AND created_at < ?"
-);
-$dashboardMonthStmt->execute([
-    $dashboardMonthStart->format('Y-m-d H:i:s'),
-    $dashboardNextMonth->format('Y-m-d H:i:s'),
-]);
-$dashboardMonth = $dashboardMonthStmt->fetch();
-$dashboardMonthTotal = (int)$dashboardMonth['total'];
-$dashboardMonthCompleted = (int)$dashboardMonth['completed'];
-$dashboardMonthNotCompleted = $dashboardMonthTotal - $dashboardMonthCompleted;
+$monthTotal = array_sum($statusCounts);
+$completed = $statusCounts['completed'];
+$notCompleted = $monthTotal - $completed;
 
 $monthlyStmt = $pdo->prepare(
     "SELECT DATE_FORMAT(created_at, '%Y-%m') AS month_key,
@@ -78,7 +68,7 @@ $monthlyStmt = $pdo->prepare(
 );
 $monthlyStmt->execute([
     $chartStart->format('Y-m-d H:i:s'),
-    $dashboardNextMonth->format('Y-m-d H:i:s'),
+    $nextMonth->format('Y-m-d H:i:s'),
 ]);
 $monthlyRows = [];
 foreach ($monthlyStmt->fetchAll() as $row) {
@@ -99,7 +89,10 @@ for ($offset = 0; $offset < 12; $offset++) {
 }
 
 $departments = array_fill_keys(ticket_departments(), 0);
-$departmentStmt = $pdo->query('SELECT department, COUNT(*) AS total FROM tickets GROUP BY department');
+$departmentStmt = $pdo->prepare(
+    'SELECT department, COUNT(*) AS total FROM tickets WHERE created_at >= ? AND created_at < ? GROUP BY department'
+);
+$departmentStmt->execute([$monthStart->format('Y-m-d H:i:s'), $nextMonth->format('Y-m-d H:i:s')]);
 foreach ($departmentStmt->fetchAll() as $row) {
     if (array_key_exists($row['department'], $departments)) {
         $departments[$row['department']] = (int)$row['total'];
@@ -275,16 +268,16 @@ $titleRow = $addRow([
 $overviewMerges[] = 'A' . $titleRow . ':D' . $titleRow;
 $subRow = $addRow([$makeCell(
     's',
-    'Tổng quan và biểu đồ theo giao diện admin hiện tại'
-        . '   |   Danh sách ticket kỳ ' . $monthStart->format('d/m/Y') . ' - ' . $monthEnd->format('d/m/Y')
+    'Thống kê và danh sách ticket theo tháng được chọn; biểu đồ cột hiển thị 12 tháng đến kỳ báo cáo'
+        . ' (' . $monthStart->format('d/m/Y') . ' - ' . $monthEnd->format('d/m/Y') . ')'
         . '   |   Ngày xuất: ' . date('d/m/Y H:i'),
     ST_SUB
 )], 18);
 $overviewMerges[] = 'A' . $subRow . ':D' . $subRow;
 $addRow([]);
 
-// Mục 1: Tổng quan hệ thống, cùng phạm vi với các ô thống kê trên dashboard.
-$sectionRow('1. TỔNG QUAN TOÀN HỆ THỐNG', 3);
+// Mục 1: Tổng quan trạng thái của tháng được chọn.
+$sectionRow('1. TỔNG QUAN THÁNG ' . $monthStart->format('m/Y'), 3);
 $addRow([
     $makeCell('s', 'Chỉ tiêu', ST_HEAD),
     $makeCell('s', 'Số lượng', ST_HEAD),
@@ -292,20 +285,20 @@ $addRow([
 ], 20);
 $addRow([
     $makeCell('s', 'Tổng ticket', ST_TOT_TEXT),
-    $makeCell('n', $dashboardTotal, ST_TOT_INT),
-    $makeCell('n', $ratio($dashboardTotal, $dashboardTotal), ST_TOT_PCT),
+    $makeCell('n', $monthTotal, ST_TOT_INT),
+    $makeCell('n', $ratio($monthTotal, $monthTotal), ST_TOT_PCT),
 ]);
 foreach ($statusKeys as $statusKey) {
     $addRow([
         $makeCell('s', ticket_status_label($statusKey), ST_TEXT),
-        $makeCell('n', $dashboardStatusCounts[$statusKey], ST_INT),
-        $makeCell('n', $ratio($dashboardStatusCounts[$statusKey], $dashboardTotal), ST_PCT),
+        $makeCell('n', $statusCounts[$statusKey], ST_INT),
+        $makeCell('n', $ratio($statusCounts[$statusKey], $monthTotal), ST_PCT),
     ]);
 }
 $addRow([]);
 
 // Mục 2: Ticket theo tháng (dữ liệu biểu đồ cột)
-$sectionRow('2. TICKET THEO THÁNG (12 THÁNG GẦN NHẤT - NHƯ DASHBOARD)', 4);
+$sectionRow('2. TICKET THEO THÁNG (12 THÁNG KẾT THÚC Ở ' . $monthStart->format('m/Y') . ')', 4);
 $monthHeaderRow = $addRow([
     $makeCell('s', 'Tháng', ST_HEAD),
     $makeCell('s', 'Tổng ticket', ST_HEAD),
@@ -334,8 +327,8 @@ $addRow([
 ]);
 $addRow([]);
 
-// Mục 3: Phòng ban trên dashboard tính toàn bộ ticket.
-$sectionRow('3. THỐNG KÊ THEO PHÒNG BAN (TOÀN HỆ THỐNG)', 3);
+// Mục 3: Thống kê phòng ban trong tháng được chọn.
+$sectionRow('3. THỐNG KÊ THEO PHÒNG BAN THÁNG ' . $monthStart->format('m/Y'), 3);
 $addRow([
     $makeCell('s', 'Phòng ban', ST_HEAD),
     $makeCell('s', 'Số ticket', ST_HEAD),
@@ -355,8 +348,8 @@ $addRow([
 ]);
 $addRow([]);
 
-// Mục 4: Kết quả trong tháng hiện tại, cùng phạm vi với biểu đồ dashboard.
-$sectionRow('4. KẾT QUẢ THÁNG NÀY (' . $dashboardMonthStart->format('m/Y') . ')', 3);
+// Mục 4: Kết quả ticket trong tháng được chọn.
+$sectionRow('4. KẾT QUẢ THÁNG ' . $monthStart->format('m/Y'), 3);
 $pieHeaderRow = $addRow([
     $makeCell('s', 'Tình trạng', ST_HEAD),
     $makeCell('s', 'Số ticket', ST_HEAD),
@@ -364,20 +357,18 @@ $pieHeaderRow = $addRow([
 ], 20);
 $addRow([
     $makeCell('s', 'Tổng ticket', ST_TOT_TEXT),
-    $makeCell('n', $dashboardMonthTotal, ST_TOT_INT),
-    $makeCell('n', $ratio($dashboardMonthTotal, $dashboardMonthTotal), ST_TOT_PCT),
+    $makeCell('n', $monthTotal, ST_TOT_INT),
+    $makeCell('n', $ratio($monthTotal, $monthTotal), ST_TOT_PCT),
 ]);
-$completed = $dashboardMonthCompleted;
-$notCompleted = $dashboardMonthNotCompleted;
 $addRow([
     $makeCell('s', 'Hoàn thành', ST_TEXT),
     $makeCell('n', $completed, ST_INT),
-    $makeCell('n', $ratio($completed, $dashboardMonthTotal), ST_PCT),
+    $makeCell('n', $ratio($completed, $monthTotal), ST_PCT),
 ]);
 $addRow([
     $makeCell('s', 'Chưa hoàn thành', ST_TEXT),
     $makeCell('n', $notCompleted, ST_INT),
-    $makeCell('n', $ratio($notCompleted, $dashboardMonthTotal), ST_PCT),
+    $makeCell('n', $ratio($notCompleted, $monthTotal), ST_PCT),
 ]);
 $pieFirstRow = $pieHeaderRow + 2;
 $pieLastRow = $pieHeaderRow + 3;
@@ -473,7 +464,7 @@ $chart1Series = [
     ],
 ];
 $chart1 = $chartFrame(
-    $chartTitle('Thống kê ticket theo tháng (12 tháng gần nhất)')
+    $chartTitle('Thống kê ticket theo tháng (12 tháng đến ' . $monthStart->format('m/Y') . ')')
     . '<c:plotArea><c:layout/><c:barChart><c:barDir val="col"/><c:grouping val="clustered"/>'
     . '<c:varyColors val="0"/>' . $chartSeries($chart1Series, true, ['347FB5', '40A77A'])
     . '<c:dLbls><c:numFmt formatCode="0;-0;;@" sourceLinked="0"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>'
@@ -511,7 +502,7 @@ $chart2Series = [[
     'valRef' => $sheetRef('B', $pieFirstRow, $pieLastRow),
 ]];
 $chart2 = $chartFrame(
-    $chartTitle('Kết quả tháng này (' . $dashboardMonthStart->format('m/Y') . ')')
+    $chartTitle('Kết quả tháng ' . $monthStart->format('m/Y'))
     . '<c:plotArea><c:layout/><c:doughnutChart><c:varyColors val="1"/>'
     . $chartSeries($chart2Series, false, [], ['2EA368', '347FB5'])
     . '<c:dLbls><c:numFmt formatCode="0%" sourceLinked="0"/>'
