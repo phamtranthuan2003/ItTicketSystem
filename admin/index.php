@@ -204,10 +204,10 @@ page_header('Tổng quan', true);
                     <span class="pie-legend-left"><i class="legend-completed"></i>Đã hoàn thành</span>
                     <strong><?= $monthCompleted ?></strong>
                 </a>
-                <div class="pie-legend-item">
+                <a class="pie-legend-item" href="<?= e(app_path('/admin/tickets.php?status=not_completed&from=' . $firstMonth->format('Y-m-01') . '&to=' . $monthEnd->format('Y-m-d'))) ?>" title="Xem các ticket chưa hoàn thành trong tháng này">
                     <span class="pie-legend-left"><i class="legend-remaining"></i>Chưa hoàn thành</span>
                     <strong><?= $monthRemaining ?></strong>
-                </div>
+                </a>
             </div>
         </div>
     </div>

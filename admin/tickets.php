@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
 $user = require_permission('tickets.view');
 
-$validStatuses = ['new', 'in_progress', 'completed', 'rejected'];
+$validStatuses = ['new', 'in_progress', 'completed', 'rejected', 'not_completed'];
 $validTypes = array_keys(ticket_types());
 $departments = ticket_departments();
 $validPriorities = ['low', 'medium', 'high'];
@@ -18,7 +18,12 @@ $filters = [
 ];
 $where = [];
 $params = [];
-if (in_array($filters['status'], $validStatuses, true)) { $where[] = 't.status = ?'; $params[] = $filters['status']; }
+if ($filters['status'] === 'not_completed') {
+    $where[] = "t.status <> 'completed'";
+} elseif (in_array($filters['status'], $validStatuses, true)) {
+    $where[] = 't.status = ?';
+    $params[] = $filters['status'];
+}
 if (in_array($filters['type'], $validTypes, true)) { $where[] = 't.type = ?'; $params[] = $filters['type']; }
 if (in_array($filters['department'], $departments, true)) { $where[] = 't.department = ?'; $params[] = $filters['department']; }
 if (in_array($filters['priority'], $validPriorities, true)) { $where[] = 't.priority = ?'; $params[] = $filters['priority']; }
@@ -62,7 +67,7 @@ show_flash();
 <section class="card">
     <form method="get" class="filters">
         <label>Tìm kiếm<input name="q" value="<?= e($filters['q']) ?>" placeholder="Mã, tên, tiêu đề"></label>
-        <label>Trạng thái<select name="status"><option value="">Tất cả</option><?php foreach ($validStatuses as $item): ?><option value="<?= e($item) ?>" <?= $filters['status'] === $item ? 'selected' : '' ?>><?= e(ticket_status_label($item)) ?></option><?php endforeach; ?></select></label>
+        <label>Trạng thái<select name="status"><option value="">Tất cả</option><?php foreach ($validStatuses as $item): ?><option value="<?= e($item) ?>" <?= $filters['status'] === $item ? 'selected' : '' ?>><?= e($item === 'not_completed' ? 'Chưa hoàn thành' : ticket_status_label($item)) ?></option><?php endforeach; ?></select></label>
         <label>Loại<select name="type"><option value="">Tất cả</option><?php foreach ($validTypes as $item): ?><option value="<?= e($item) ?>" <?= $filters['type'] === $item ? 'selected' : '' ?>><?= e(ticket_type_label($item)) ?></option><?php endforeach; ?></select></label>
         <label>Ban/Phòng ban<select name="department"><option value="">Tất cả</option><?php foreach ($departments as $item): ?><option value="<?= e($item) ?>" <?= $filters['department'] === $item ? 'selected' : '' ?>><?= e($item) ?></option><?php endforeach; ?></select></label>
         <label>Ưu tiên<select name="priority"><option value="">Tất cả</option><?php foreach ($validPriorities as $item): ?><option value="<?= e($item) ?>" <?= $filters['priority'] === $item ? 'selected' : '' ?>><?= e(ticket_priority_label($item)) ?></option><?php endforeach; ?></select></label>
