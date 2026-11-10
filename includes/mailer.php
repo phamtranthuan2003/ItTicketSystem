@@ -363,6 +363,12 @@ function notify_requester_created(string $email, array $ticket): bool
         $description = mb_substr($description, 0, 2000) . '…';
     }
     $ticketCode = (string)$ticket['ticket_code'];
+    $trackingUrl = app_url('track.php?' . http_build_query(['ticket_code' => $ticketCode]));
+    $requestUrl = app_url('');
+    $linksHtml = '<div style="margin-top:16px;padding:12px;background:#f7f9fb;border-radius:5px">'
+        . '<p style="margin:0 0 8px"><strong>Tra cứu ticket:</strong> <a href="' . e($trackingUrl) . '">' . e($trackingUrl) . '</a></p>'
+        . '<p style="margin:0"><strong>Gửi yêu cầu hỗ trợ mới:</strong> <a href="' . e($requestUrl) . '">' . e($requestUrl) . '</a></p>'
+        . '</div>';
     $html = ticket_email_layout(
         'Chúng tôi đã nhận yêu cầu của bạn',
         [
@@ -379,10 +385,10 @@ function notify_requester_created(string $email, array $ticket): bool
             'Hạn xử lý' => e((string)$ticket['resolution_due_at']),
             'Tệp đính kèm' => e((string)($ticket['attachment_original_name'] ?: 'Không có')),
         ],
-        app_url('track.php?' . http_build_query(['ticket_code' => $ticketCode])),
+        $trackingUrl,
         'Tra cứu ticket',
         '<p style="margin:14px 0 4px;color:#64748b">Mô tả:</p><div style="background:#f7f9fb;padding:10px;border-radius:5px">'
-            . nl2br(e($description)) . '</div>'
+            . nl2br(e($description)) . '</div>' . $linksHtml
     );
     return send_ticket_email([$email, SMTP_USER], 'Xác nhận ticket ' . $ticketCode, $html);
 }
