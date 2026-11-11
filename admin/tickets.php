@@ -66,7 +66,7 @@ $offset = ($page - 1) * $perPage;
 $firstItem = $total > 0 ? $offset + 1 : 0;
 $lastItem = min($offset + $perPage, $total);
 $sql = 'SELECT t.id, t.ticket_code, t.full_name, t.department, t.title, t.type, t.priority, t.status, t.created_at, t.response_due_at, t.resolution_due_at, a.username AS assignee
-        FROM tickets t LEFT JOIN admins a ON a.id = t.assignee_id' . $filterSql . " ORDER BY CAST(t.ticket_code AS UNSIGNED) ASC, t.id ASC LIMIT " . $perPage . ' OFFSET ' . $offset;
+        FROM tickets t LEFT JOIN admins a ON a.id = t.assignee_id' . $filterSql . " ORDER BY t.id DESC LIMIT " . $perPage . ' OFFSET ' . $offset;
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $tickets = $stmt->fetchAll();
