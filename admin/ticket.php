@@ -7,7 +7,10 @@ $canUpdateTickets = has_permission($admin, 'tickets.update');
 $canManageTickets = has_permission($admin, 'tickets.manage');
 $pdo = db();
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT) ?: filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
-if (!$id) { http_response_code(400); exit('Mã ticket không hợp lệ.'); }
+if (!$id) {
+    http_response_code(400);
+    exit('Mã ticket không hợp lệ.');
+}
 $returnState = $_POST['return'] ?? $_GET['return'] ?? '';
 $returnParams = [];
 if (is_string($returnState) && strlen($returnState) <= 2048) {
@@ -29,14 +32,23 @@ $ticketPageUrl = app_path('/admin/ticket.php') . '?' . http_build_query(['id' =>
 
 if (isset($_GET['preview_attachment'])) {
     $attachmentId = filter_input(INPUT_GET, 'preview_attachment', FILTER_VALIDATE_INT);
-    if (!$attachmentId) { http_response_code(400); exit('Mã tệp không hợp lệ.'); }
+    if (!$attachmentId) {
+        http_response_code(400);
+        exit('Mã tệp không hợp lệ.');
+    }
     $attachmentStmt = $pdo->prepare('SELECT stored_name, mime_type FROM ticket_attachments WHERE ticket_id = ? AND id = ?');
     $attachmentStmt->execute([$id, $attachmentId]);
     $fileRow = $attachmentStmt->fetch();
     $previewTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!$fileRow || !in_array($fileRow['mime_type'], $previewTypes, true)) { http_response_code(404); exit('Không tìm thấy ảnh.'); }
+    if (!$fileRow || !in_array($fileRow['mime_type'], $previewTypes, true)) {
+        http_response_code(404);
+        exit('Không tìm thấy ảnh.');
+    }
     $path = dirname(__DIR__) . '/uploads/' . basename($fileRow['stored_name']);
-    if (!is_file($path) || !is_readable($path)) { http_response_code(404); exit('Ảnh không còn tồn tại.'); }
+    if (!is_file($path) || !is_readable($path)) {
+        http_response_code(404);
+        exit('Ảnh không còn tồn tại.');
+    }
     header('Content-Type: ' . $fileRow['mime_type']);
     header('Content-Disposition: inline');
     header('Content-Security-Policy: default-src \'none\'; sandbox');
@@ -51,11 +63,20 @@ if (isset($_GET['preview_legacy'])) {
     $ticketStmt = $pdo->prepare('SELECT attachment_name FROM tickets WHERE id = ?');
     $ticketStmt->execute([$id]);
     $fileRow = $ticketStmt->fetch();
-    if (!$fileRow || !$fileRow['attachment_name']) { http_response_code(404); exit('Không tìm thấy ảnh.'); }
+    if (!$fileRow || !$fileRow['attachment_name']) {
+        http_response_code(404);
+        exit('Không tìm thấy ảnh.');
+    }
     $path = dirname(__DIR__) . '/uploads/' . basename($fileRow['attachment_name']);
-    if (!is_file($path) || !is_readable($path)) { http_response_code(404); exit('Ảnh không còn tồn tại.'); }
+    if (!is_file($path) || !is_readable($path)) {
+        http_response_code(404);
+        exit('Ảnh không còn tồn tại.');
+    }
     $mime = (new finfo(FILEINFO_MIME_TYPE))->file($path);
-    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) { http_response_code(415); exit('Tệp này không phải ảnh được hỗ trợ.'); }
+    if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+        http_response_code(415);
+        exit('Tệp này không phải ảnh được hỗ trợ.');
+    }
     header('Content-Type: ' . $mime);
     header('Content-Disposition: inline');
     header('Content-Security-Policy: default-src \'none\'; sandbox');
@@ -68,13 +89,22 @@ if (isset($_GET['preview_legacy'])) {
 
 if (isset($_GET['attachment_id'])) {
     $attachmentId = filter_input(INPUT_GET, 'attachment_id', FILTER_VALIDATE_INT);
-    if (!$attachmentId) { http_response_code(400); exit('Mã tệp không hợp lệ.'); }
+    if (!$attachmentId) {
+        http_response_code(400);
+        exit('Mã tệp không hợp lệ.');
+    }
     $attachmentStmt = $pdo->prepare('SELECT stored_name, original_name FROM ticket_attachments WHERE ticket_id = ? AND id = ?');
     $attachmentStmt->execute([$id, $attachmentId]);
     $fileRow = $attachmentStmt->fetch();
-    if (!$fileRow) { http_response_code(404); exit('Không tìm thấy tệp.'); }
+    if (!$fileRow) {
+        http_response_code(404);
+        exit('Không tìm thấy tệp.');
+    }
     $path = dirname(__DIR__) . '/uploads/' . basename($fileRow['stored_name']);
-    if (!is_file($path) || !is_readable($path)) { http_response_code(404); exit('Tệp không còn tồn tại.'); }
+    if (!is_file($path) || !is_readable($path)) {
+        http_response_code(404);
+        exit('Tệp không còn tồn tại.');
+    }
     header('Content-Type: application/octet-stream');
     $downloadName = preg_replace('/[\r\n"\\\\]/', '_', basename($fileRow['original_name'])) ?? 'attachment';
     header('Content-Disposition: attachment; filename="' . $downloadName . '"; filename*=UTF-8\'\'' . rawurlencode($downloadName));
@@ -89,9 +119,15 @@ if (isset($_GET['download'])) {
     $ticketStmt = $pdo->prepare('SELECT attachment_name, attachment_original_name FROM tickets WHERE id = ?');
     $ticketStmt->execute([$id]);
     $fileRow = $ticketStmt->fetch();
-    if (!$fileRow || !$fileRow['attachment_name']) { http_response_code(404); exit('Không tìm thấy tệp.'); }
+    if (!$fileRow || !$fileRow['attachment_name']) {
+        http_response_code(404);
+        exit('Không tìm thấy tệp.');
+    }
     $path = dirname(__DIR__) . '/uploads/' . basename($fileRow['attachment_name']);
-    if (!is_file($path)) { http_response_code(404); exit('Tệp không còn tồn tại.'); }
+    if (!is_file($path)) {
+        http_response_code(404);
+        exit('Tệp không còn tồn tại.');
+    }
     header('Content-Type: application/octet-stream');
     $downloadName = preg_replace('/[\r\n"\\\\]/', '_', basename($fileRow['attachment_original_name'])) ?? 'attachment';
     header('Content-Disposition: attachment; filename="' . $downloadName . '"; filename*=UTF-8\'\'' . rawurlencode($downloadName));
@@ -104,11 +140,15 @@ if (isset($_GET['download'])) {
 $stmt = $pdo->prepare('SELECT t.*, a.username AS assignee_name FROM tickets t LEFT JOIN admins a ON a.id = t.assignee_id WHERE t.id = ?');
 $stmt->execute([$id]);
 $ticket = $stmt->fetch();
-if (!$ticket) { http_response_code(404); exit('Không tìm thấy ticket.'); }
+if (!$ticket) {
+    http_response_code(404);
+    exit('Không tìm thấy ticket.');
+}
 if ($ticket['type'] === 'accounting') {
     try {
         $pdo->prepare("UPDATE tickets SET type = 'pc' WHERE id = ?")->execute([$id]);
-    } catch (Throwable) {}
+    } catch (Throwable) {
+    }
     $ticket['type'] = 'pc';
 }
 $statuses = ['new', 'in_progress', 'completed', 'rejected'];
@@ -152,7 +192,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             admin_flash($cleanupFailed ? 'error' : 'success', $cleanupFailed ? 'Đã xóa ticket nhưng không thể xóa một số tệp đính kèm.' : 'Ticket đã được xóa.');
         } catch (Throwable $exception) {
-            if ($pdo->inTransaction()) $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             error_log('Ticket deletion error: ' . $exception->getMessage());
             admin_flash('error', 'Không thể xóa ticket lúc này.');
         }
@@ -215,7 +257,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 notify_managers_ticket_updated(array_merge($ticket, ['status' => $status, 'priority' => $priority]), $changes, $admin['username']);
             }
         } catch (Throwable $exception) {
-            if ($pdo->inTransaction()) $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             error_log('Staff ticket update error: ' . $exception->getMessage());
             admin_flash('error', 'Không thể cập nhật ticket lúc này.');
         }
@@ -266,12 +310,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $historyChanges[] = $label . ': "' . ($oldValue !== '' ? $oldValue : '(trống)')
             . '" → "' . ($newValue !== '' ? $newValue : '(trống)') . '"';
     };
-    if ($ticket['full_name'] !== $fullName) $recordChange('Người gửi', (string)$ticket['full_name'], $fullName);
-    if ($ticket['department'] !== $department) $recordChange('Phòng ban', (string)$ticket['department'], $department);
-    if ($ticket['contact'] !== $contact) $recordChange('Zalo liên hệ', (string)$ticket['contact'], $contact);
-    if ($ticket['type'] !== $type) $recordChange('Loại yêu cầu', ticket_type_label($ticket['type']), ticket_type_label($type));
-    if ($ticket['title'] !== $title) $recordChange('Tiêu đề', (string)$ticket['title'], $title);
-    if ($ticket['description'] !== $description) $recordChange('Mô tả', (string)$ticket['description'], $description);
+    if ($ticket['full_name'] !== $fullName) {
+        $recordChange('Người gửi', (string)$ticket['full_name'], $fullName);
+    }
+    if ($ticket['department'] !== $department) {
+        $recordChange('Phòng ban', (string)$ticket['department'], $department);
+    }
+    if ($ticket['contact'] !== $contact) {
+        $recordChange('Zalo liên hệ', (string)$ticket['contact'], $contact);
+    }
+    if ($ticket['type'] !== $type) {
+        $recordChange('Loại yêu cầu', ticket_type_label($ticket['type']), ticket_type_label($type));
+    }
+    if ($ticket['title'] !== $title) {
+        $recordChange('Tiêu đề', (string)$ticket['title'], $title);
+    }
+    if ($ticket['description'] !== $description) {
+        $recordChange('Mô tả', (string)$ticket['description'], $description);
+    }
     if ($ticket['status'] !== $status) {
         $recordChange('Trạng thái', ticket_status_label($ticket['status']), ticket_status_label($status));
     }
@@ -318,11 +374,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $responseDeadline, $resolutionDeadline,
             $assignee, $note !== '' ? $note : null, $id,
         ]);
-        if ($changes || $historyChanges) add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode("\n", $historyChanges));
+        if ($changes || $historyChanges) {
+            add_ticket_history((int)$id, $admin['id'], 'Cập nhật ticket', implode("\n", $historyChanges));
+        }
         $pdo->commit();
         admin_flash('success', 'Ticket đã được cập nhật.');
         // Chỉ báo quản lý khi có thay đổi quan trọng (không gửi khi chỉ sửa ghi chú)
-        $mailChanges = array_values(array_filter($changes, static fn(string $c): bool => !str_starts_with($c, 'Ghi chú phản hồi')));
+        $mailChanges = array_values(array_filter($changes, static fn (string $c): bool => !str_starts_with($c, 'Ghi chú phản hồi')));
         if ($mailChanges) {
             notify_managers_ticket_updated(array_merge($ticket, [
                 'full_name' => $fullName,
@@ -337,7 +395,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]), $mailChanges, $admin['username']);
         }
     } catch (Throwable $exception) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         error_log('Ticket update error: ' . $exception->getMessage());
         admin_flash('error', 'Không thể cập nhật ticket lúc này.');
     }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 // Kiểm tra gửi email. CHỈ chạy bằng dòng lệnh:
 //   C:\xampp\php\php.exe C:\xampp\htdocs\ticket\tools\test_mail.php nguoinhan@congty.vn

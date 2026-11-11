@@ -31,17 +31,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $userId = (int)($_POST['user_id'] ?? 0);
             $password = (string)($_POST['password'] ?? '');
-            if ($userId < 1 || strlen($password) < 8) throw new InvalidArgumentException('Mật khẩu mới phải có ít nhất 8 ký tự.');
+            if ($userId < 1 || strlen($password) < 8) {
+                throw new InvalidArgumentException('Mật khẩu mới phải có ít nhất 8 ký tự.');
+            }
             $target = $pdo->prepare('SELECT username, role FROM admins WHERE id = ?');
             $target->execute([$userId]);
             $targetAccount = $target->fetch();
-            if (!$targetAccount) throw new InvalidArgumentException('Không tìm thấy tài khoản.');
+            if (!$targetAccount) {
+                throw new InvalidArgumentException('Không tìm thấy tài khoản.');
+            }
             if (($targetAccount['role'] === 'super_admin' || strcasecmp($targetAccount['username'], 'thuanpt') === 0) && !$canAssignRoles) {
                 throw new InvalidArgumentException('Chỉ thuanpt mới có quyền thay đổi tài khoản Super Admin.');
             }
             $stmt = $pdo->prepare('UPDATE admins SET password_hash = ? WHERE id = ?');
             $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $userId]);
-            if (!$stmt->rowCount()) throw new InvalidArgumentException('Không tìm thấy tài khoản.');
+            if (!$stmt->rowCount()) {
+                throw new InvalidArgumentException('Không tìm thấy tài khoản.');
+            }
             admin_flash('success', 'Đã đổi mật khẩu.');
         } elseif ($action === 'role') {
             if (!$canAssignRoles) {
@@ -56,7 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $target = $pdo->prepare('SELECT username, role FROM admins WHERE id = ?');
             $target->execute([$userId]);
             $targetAccount = $target->fetch();
-            if (!$targetAccount) throw new InvalidArgumentException('Không tìm thấy tài khoản.');
+            if (!$targetAccount) {
+                throw new InvalidArgumentException('Không tìm thấy tài khoản.');
+            }
             if ($targetAccount['role'] === 'super_admin' || strcasecmp($targetAccount['username'], 'thuanpt') === 0) {
                 throw new InvalidArgumentException('Không thể thay đổi vai trò của tài khoản thuanpt.');
             }
@@ -68,11 +76,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 exit('Bạn không có quyền xóa tài khoản.');
             }
             $userId = (int)($_POST['user_id'] ?? 0);
-            if ($userId === $admin['id']) throw new InvalidArgumentException('Không thể xóa tài khoản đang đăng nhập.');
+            if ($userId === $admin['id']) {
+                throw new InvalidArgumentException('Không thể xóa tài khoản đang đăng nhập.');
+            }
             $target = $pdo->prepare('SELECT username, role FROM admins WHERE id = ?');
             $target->execute([$userId]);
             $targetAccount = $target->fetch();
-            if (!$targetAccount) throw new InvalidArgumentException('Không tìm thấy tài khoản.');
+            if (!$targetAccount) {
+                throw new InvalidArgumentException('Không tìm thấy tài khoản.');
+            }
             $targetRole = $targetAccount['role'];
             if ($targetRole === 'super_admin' || strcasecmp($targetAccount['username'], 'thuanpt') === 0) {
                 throw new InvalidArgumentException('Không thể xóa tài khoản thuanpt.');

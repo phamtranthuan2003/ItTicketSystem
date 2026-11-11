@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/functions.php';
@@ -130,7 +131,7 @@ function graph_send_mail(array $recipients, string $subject, string $html, array
                 'subject' => $subject,
                 'importance' => $importance,
                 'body' => ['contentType' => 'HTML', 'content' => $html],
-                'toRecipients' => array_map(static fn(string $a): array => ['emailAddress' => ['address' => $a]], $recipients),
+                'toRecipients' => array_map(static fn (string $a): array => ['emailAddress' => ['address' => $a]], $recipients),
             ],
             'saveToSentItems' => M365_SAVE_TO_SENT,
         ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
@@ -303,7 +304,7 @@ function notify_managers_ticket_updated(array $ticket, array $changes, string $b
     if (!$to) {
         return false;
     }
-    $changeList = '<ul style="margin:0;padding-left:18px">' . implode('', array_map(static fn(string $c): string => '<li>' . e($c) . '</li>', $changes)) . '</ul>';
+    $changeList = '<ul style="margin:0;padding-left:18px">' . implode('', array_map(static fn (string $c): string => '<li>' . e($c) . '</li>', $changes)) . '</ul>';
     $html = ticket_email_layout(
         'Cập nhật ticket ' . $ticket['ticket_code'],
         [

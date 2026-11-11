@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/db.php';
@@ -114,7 +115,7 @@ function calculate_ticket_priority(string $scope, string $workAbility, string $t
     }
     $keywordScore = min(4, count($matchedGroups) * 2);
     $matchedKeywords = array_map(
-        static fn(array $group): string => $group['label'] . ': ' . $group['keyword'],
+        static fn (array $group): string => $group['label'] . ': ' . $group['keyword'],
         $matchedGroups
     );
     $breakdown[] = [

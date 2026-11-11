@@ -24,11 +24,26 @@ if ($filters['status'] === 'not_completed') {
     $where[] = 't.status = ?';
     $params[] = $filters['status'];
 }
-if (in_array($filters['type'], $validTypes, true)) { $where[] = 't.type = ?'; $params[] = $filters['type']; }
-if (in_array($filters['department'], $departments, true)) { $where[] = 't.department = ?'; $params[] = $filters['department']; }
-if (in_array($filters['priority'], $validPriorities, true)) { $where[] = 't.priority = ?'; $params[] = $filters['priority']; }
-if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['from'])) { $where[] = 't.created_at >= ?'; $params[] = $filters['from'] . ' 00:00:00'; }
-if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['to'])) { $where[] = 't.created_at <= ?'; $params[] = $filters['to'] . ' 23:59:59'; }
+if (in_array($filters['type'], $validTypes, true)) {
+    $where[] = 't.type = ?';
+    $params[] = $filters['type'];
+}
+if (in_array($filters['department'], $departments, true)) {
+    $where[] = 't.department = ?';
+    $params[] = $filters['department'];
+}
+if (in_array($filters['priority'], $validPriorities, true)) {
+    $where[] = 't.priority = ?';
+    $params[] = $filters['priority'];
+}
+if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['from'])) {
+    $where[] = 't.created_at >= ?';
+    $params[] = $filters['from'] . ' 00:00:00';
+}
+if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $filters['to'])) {
+    $where[] = 't.created_at <= ?';
+    $params[] = $filters['to'] . ' 23:59:59';
+}
 if ($filters['q'] !== '') {
     $where[] = '(t.ticket_code LIKE ? OR t.full_name LIKE ? OR t.title LIKE ?)';
     $needle = '%' . $filters['q'] . '%';
@@ -38,7 +53,8 @@ $filterSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
 $pdo = db();
 try {
     $pdo->exec("UPDATE tickets SET type = 'pc' WHERE type = 'accounting'");
-} catch (Throwable) {}
+} catch (Throwable) {
+}
 $countStmt = $pdo->prepare('SELECT COUNT(*) FROM tickets t' . $filterSql);
 $countStmt->execute($params);
 $total = (int)$countStmt->fetchColumn();

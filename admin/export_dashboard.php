@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
 require_permission('tickets.export');
@@ -543,8 +544,8 @@ $drawingXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
 /* ------------------------------------------------------------------ */
 /* 6. Sheet "Ticket trong tháng"                                       */
 /* ------------------------------------------------------------------ */
-$head = static fn(string $text): array => ['s', $text, ST_HEAD];
-$body = static fn(mixed $text): array => ['s', (string)($text ?? ''), ST_BODY];
+$head = static fn (string $text): array => ['s', $text, ST_HEAD];
+$body = static fn (mixed $text): array => ['s', (string)($text ?? ''), ST_BODY];
 
 $ticketRows = [[
     $head('Mã ticket'), $head('Họ tên'), $head('Phòng ban'), $head('Zalo liên hệ'), $head('Email'),

@@ -2,7 +2,9 @@
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
 
-if (!empty($_SESSION['admin_id'])) redirect(app_path('/admin/'));
+if (!empty($_SESSION['admin_id'])) {
+    redirect(app_path('/admin/'));
+}
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
@@ -42,7 +44,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect(app_path('/admin/'));
         }
     } catch (Throwable $exception) {
-        if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         error_log('Admin login error: ' . $exception->getMessage());
         $error = 'Không thể đăng nhập lúc này. Vui lòng thử lại sau.';
     }

@@ -28,8 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'title' => trim((string)($_POST['title'] ?? '')),
         'description' => trim((string)($_POST['description'] ?? '')),
     ];
-    if ($data['full_name'] === '' || mb_strlen($data['full_name']) > 150) $errors[] = 'Vui lòng nhập họ tên (tối đa 150 ký tự).';
-    if (!in_array($data['department'], $departments, true)) $errors[] = 'Vui lòng chọn phòng ban hợp lệ.';
+    if ($data['full_name'] === '' || mb_strlen($data['full_name']) > 150) {
+        $errors[] = 'Vui lòng nhập họ tên (tối đa 150 ký tự).';
+    }
+    if (!in_array($data['department'], $departments, true)) {
+        $errors[] = 'Vui lòng chọn phòng ban hợp lệ.';
+    }
     if ($data['contact'] === '' || strlen($data['contact']) > 10 || !preg_match('/^\d+$/', $data['contact'])) {
         $errors[] = 'Vui lòng nhập thông tin Zalo liên hệ (tối đa 10 số).';
     }
@@ -40,11 +44,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ) {
         $errors[] = 'Vui lòng nhập địa chỉ email hợp lệ (tối đa 190 ký tự).';
     }
-    if (!array_key_exists($data['type'], $types)) $errors[] = 'Loại yêu cầu không hợp lệ.';
-    if (!array_key_exists($data['impact_scope'], $impactScopes)) $errors[] = 'Vui lòng chọn phạm vi ảnh hưởng hợp lệ.';
-    if (!array_key_exists($data['work_ability'], $workAbilities)) $errors[] = 'Vui lòng chọn khả năng tiếp tục làm việc hợp lệ.';
-    if ($data['title'] === '' || mb_strlen($data['title']) > 200) $errors[] = 'Vui lòng nhập tiêu đề (tối đa 200 ký tự).';
-    if ($data['description'] === '' || mb_strlen($data['description']) > 20000) $errors[] = 'Vui lòng nhập mô tả (tối đa 20.000 ký tự).';
+    if (!array_key_exists($data['type'], $types)) {
+        $errors[] = 'Loại yêu cầu không hợp lệ.';
+    }
+    if (!array_key_exists($data['impact_scope'], $impactScopes)) {
+        $errors[] = 'Vui lòng chọn phạm vi ảnh hưởng hợp lệ.';
+    }
+    if (!array_key_exists($data['work_ability'], $workAbilities)) {
+        $errors[] = 'Vui lòng chọn khả năng tiếp tục làm việc hợp lệ.';
+    }
+    if ($data['title'] === '' || mb_strlen($data['title']) > 200) {
+        $errors[] = 'Vui lòng nhập tiêu đề (tối đa 200 ký tự).';
+    }
+    if ($data['description'] === '' || mb_strlen($data['description']) > 20000) {
+        $errors[] = 'Vui lòng nhập mô tả (tối đa 20.000 ký tự).';
+    }
     $priorityResult = calculate_ticket_priority(
         $data['impact_scope'],
         $data['work_ability'],
@@ -203,7 +217,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 send_telegram_notification("Ticket mới {$successCode}: " . $data['title']);
             }
         } catch (Throwable $exception) {
-            if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             foreach ($savedFilePaths as $savedFilePath) {
                 if (is_file($savedFilePath) && !unlink($savedFilePath)) {
                     error_log('Ticket attachment cleanup failed after ticket creation error.');
@@ -230,7 +246,9 @@ if ($successCode !== '') {
     $finalSla = ticket_sla_minutes($priorityResult['priority']);
     echo '<div class="alert success"><h2>Gửi yêu cầu thành công</h2><p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p><p>Mức độ ưu tiên: <strong>' . e(ticket_priority_label($priorityResult['priority'])) . '</strong>.</p><p>SLA: phản hồi trong ' . (int)$finalSla['response'] . ' phút làm việc, xử lý trong ' . (int)($finalSla['resolution'] / 60) . ' giờ làm việc.</p><p>Thời gian chỉ tính trong giờ làm việc: Thứ Hai–Thứ Sáu 8:00–17:30, Thứ Bảy 8:00–12:00.</p><p>Hãy lưu mã này để tra cứu trạng thái.</p><a class="button" href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a></div>';
 } else {
-    foreach ($errors as $error) echo '<div class="alert error">' . e($error) . '</div>';
+    foreach ($errors as $error) {
+        echo '<div class="alert error">' . e($error) . '</div>';
+    }
     ?>
     <form method="post" enctype="multipart/form-data" class="card form-grid">
         <?= csrf_field() ?>

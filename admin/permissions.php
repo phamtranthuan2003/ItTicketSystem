@@ -58,10 +58,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
         admin_flash('success', 'Đã lưu quyền cho các vai trò.');
     } catch (InvalidArgumentException $exception) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         admin_flash('error', $exception->getMessage());
     } catch (Throwable $exception) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         error_log('Role permissions update error: ' . $exception->getMessage());
         admin_flash('error', 'Không thể lưu cấu hình phân quyền lúc này.');
     }
@@ -91,7 +95,8 @@ show_flash();
                     <tr><th>Chức năng</th><th>Mô tả</th><th>Admin</th><th>Staff</th></tr>
                 </thead>
                 <tbody>
-                    <?php $currentGroup = ''; foreach ($catalog as $permission => $definition): ?>
+                    <?php $currentGroup = '';
+foreach ($catalog as $permission => $definition): ?>
                         <?php if ($currentGroup !== $definition['group']): $currentGroup = $definition['group']; ?>
                             <tr><th colspan="4"><?= e($currentGroup) ?></th></tr>
                         <?php endif; ?>

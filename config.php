@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 $envFile = __DIR__ . DIRECTORY_SEPARATOR . '.env';
@@ -79,8 +80,8 @@ const MANAGER_RECIPIENTS = [
     'admin'      => [],
     'other'      => [],
 ];
-const NOTIFY_ON_NEW_TICKET = true;     
-const NOTIFY_ON_STATUS_CHANGE = true;  
+const NOTIFY_ON_NEW_TICKET = true;
+const NOTIFY_ON_STATUS_CHANGE = true;
 const NOTIFY_REQUESTER = true;
 
 // --- Microsoft Graph
@@ -90,9 +91,9 @@ $m365ClientSecret = getenv('M365_CLIENT_SECRET');
 define('M365_CLIENT_SECRET', $m365ClientSecret === false ? '' : $m365ClientSecret);
 const M365_SENDER = '';
 const M365_SAVE_TO_SENT = false;
-const MAIL_CA_BUNDLE = '';             
+const MAIL_CA_BUNDLE = '';
 
-const SMTP_ENABLED = false;            
+const SMTP_ENABLED = false;
 const TELEGRAM_ENABLED = false;
 const TELEGRAM_BOT_TOKEN = '';
 const TELEGRAM_CHAT_ID = '';

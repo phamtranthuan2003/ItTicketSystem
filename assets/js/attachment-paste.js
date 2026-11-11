@@ -109,7 +109,9 @@
       return;
     }
     renderFiles(files);
-    feedback.textContent = files.length ? `Đã chọn ${files.length} tệp đính kèm.` : 'Có thể dán một hoặc nhiều ảnh bằng Ctrl + V, hoặc chọn tệp từ thiết bị.';
+    feedback.textContent = files.length
+      ? `Đã chọn ${files.length} tệp đính kèm.`
+      : 'Có thể dán một hoặc nhiều ảnh bằng Ctrl + V, hoặc chọn tệp từ thiết bị.';
   });
 
   document.addEventListener('paste', (event) => {

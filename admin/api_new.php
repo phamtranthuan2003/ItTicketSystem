@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 require_once dirname(__DIR__) . '/includes/functions.php';
 require_permission('tickets.view');
@@ -21,7 +22,7 @@ try {
     echo json_encode([
         'ok' => true,
         'count' => $count,
-        'newTickets' => array_map(static fn(array $ticket): array => [
+        'newTickets' => array_map(static fn (array $ticket): array => [
             'code' => $ticket['ticket_code'],
             'title' => $ticket['title'],
             'url' => app_path('/admin/ticket.php?id=' . (int)$ticket['id']),
