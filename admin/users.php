@@ -137,3 +137,35 @@ show_flash();
 <td><?php if ((int)$user['id'] !== $admin['id'] && !$isProtectedAccount): ?><form method="post" onsubmit="return confirm('Xóa tài khoản này?')"><?= csrf_field() ?><input type="hidden" name="action" value="delete"><input type="hidden" name="user_id" value="<?= (int)$user['id'] ?>"><button type="submit" class="danger small">Xóa</button></form><?php endif; ?></td></tr><?php endforeach; ?>
 </tbody></table></div></section>
 <?php page_footer(); ?>
+
+
+<style>
+form.account-create-form .account-create-fields {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    gap: 16px;
+    align-items: flex-end;
+}
+form.account-create-form .account-create-fields > label {
+    display: flex !important;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1 0;
+    min-width: 0;
+    margin: 0;
+}
+form.account-create-form .account-create-fields input,
+form.account-create-form .account-create-fields select {
+    width: 100%;
+    box-sizing: border-box;
+}
+form.account-create-form .account-create-actions {
+    margin-top: 16px;
+}
+@media (max-width: 768px) {
+    form.account-create-form .account-create-fields {
+        flex-direction: column !important;
+    }
+}
+</style>
