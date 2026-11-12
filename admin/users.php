@@ -112,12 +112,21 @@ show_flash();
 ?>
 <section class="card">
     <h2>Thêm tài khoản</h2>
-    <form method="post" class="form-grid compact">
+    <form method="post" class="account-create-form">
         <?= csrf_field() ?><input type="hidden" name="action" value="create">
-        <label>Tên đăng nhập<input name="username" required minlength="3" maxlength="100" pattern="[A-Za-z0-9._-]+"></label>
-        <label>Mật khẩu tạm (ít nhất 8 ký tự)<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
-        <?php if ($canAssignRoles): ?><label>Vai trò<select name="role"><option value="staff">Staff — xử lý ticket</option><option value="admin">Admin — quản lý ticket</option></select></label><?php endif; ?>
-        <div><button type="submit">Tạo tài khoản</button></div>
+        <div class="account-create-fields">
+            <label>Tên đăng nhập<input name="username" required minlength="3" maxlength="100" pattern="[A-Za-z0-9._-]+"></label>
+            <label>Mật khẩu tạm (ít nhất 8 ký tự)<input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+            <?php if ($canAssignRoles): ?>
+            <label>Vai trò
+                <select name="role">
+                    <option value="staff">Staff — xử lý ticket</option>
+                    <option value="admin">Admin — quản lý ticket</option>
+                </select>
+            </label>
+            <?php endif; ?>
+        </div>
+        <div class="account-create-actions"><button type="submit">Tạo tài khoản</button></div>
     </form>
 </section>
 <section class="card"><h2>Tài khoản hiện có</h2><div class="table-wrap"><table><thead><tr><th>Tên đăng nhập</th><th>Vai trò</th><?php if ($canAssignRoles): ?><th>Đổi quyền</th><?php endif; ?><th>Tạo lúc</th><th>Đăng nhập gần nhất</th><th>Đổi mật khẩu</th><th></th></tr></thead><tbody>
