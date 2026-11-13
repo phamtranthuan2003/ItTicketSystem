@@ -141,6 +141,21 @@ function ticket_sla_minutes(string $priority): array
     ][$priority] ?? throw new InvalidArgumentException('Invalid ticket priority.');
 }
 
+/**
+ * Khung giờ làm việc của một ngày, tính theo [giờ bắt đầu, phút bắt đầu, giờ kết thúc, phút kết thúc].
+ * Thứ Hai–Thứ Sáu: 8:00–12:00 và 13:30–17:30. Thứ Bảy: 8:00–12:00. Chủ Nhật: nghỉ.
+ */
+function business_day_windows(int $dayOfWeek): array
+{
+    if ($dayOfWeek === 7) {
+        return [];
+    }
+    if ($dayOfWeek === 6) {
+        return [[8, 0, 12, 0]];
+    }
+    return [[8, 0, 12, 0], [13, 30, 17, 30]];
+}
+
 function add_business_minutes(DateTimeInterface $start, int $minutes): DateTimeImmutable
 {
     if ($minutes < 0) {
@@ -153,30 +168,34 @@ function add_business_minutes(DateTimeInterface $start, int $minutes): DateTimeI
         return $current;
     }
 
-    while (true) {
-        $dayOfWeek = (int)$current->format('N');
-        if ($dayOfWeek === 7) {
-            $current = $current->modify('+1 day')->setTime(8, 0);
-            continue;
+    for ($guard = 0; $guard < 3660; $guard++) {
+        $windows = business_day_windows((int)$current->format('N'));
+
+        foreach ($windows as [$openH, $openM, $closeH, $closeM]) {
+            $opensAt = $current->setTime($openH, $openM);
+            $closesAt = $current->setTime($closeH, $closeM);
+
+            if ($current >= $closesAt) {
+                continue; // đã qua khung này
+            }
+            if ($current < $opensAt) {
+                $current = $opensAt; // chưa tới giờ, nhảy tới đầu khung
+            }
+
+            $availableSeconds = $closesAt->getTimestamp() - $current->getTimestamp();
+            if ($remainingSeconds <= $availableSeconds) {
+                return $current->modify('+' . $remainingSeconds . ' seconds');
+            }
+
+            $remainingSeconds -= $availableSeconds;
+            $current = $closesAt;
         }
 
-        $opensAt = $current->setTime(8, 0);
-        $closesAt = $dayOfWeek === 6 ? $current->setTime(12, 0) : $current->setTime(17, 30);
-        if ($current < $opensAt) {
-            $current = $opensAt;
-        } elseif ($current >= $closesAt) {
-            $current = $current->modify('+1 day')->setTime(8, 0);
-            continue;
-        }
-
-        $availableSeconds = $closesAt->getTimestamp() - $current->getTimestamp();
-        if ($remainingSeconds <= $availableSeconds) {
-            return $current->modify('+' . $remainingSeconds . ' seconds');
-        }
-
-        $remainingSeconds -= $availableSeconds;
-        $current = $closesAt;
+        // hết các khung trong ngày, sang ngày kế tiếp
+        $current = $current->modify('+1 day')->setTime(0, 0);
     }
+
+    throw new RuntimeException('Unable to calculate business deadline.');
 }
 
 function ticket_sla_deadlines(DateTimeInterface $start, string $priority): array

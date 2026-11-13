@@ -244,7 +244,15 @@ page_header('Gửi yêu cầu', false, false);
 <?php
 if ($successCode !== '') {
     $finalSla = ticket_sla_minutes($priorityResult['priority']);
-    echo '<div class="alert success"><h2>Gửi yêu cầu thành công</h2><p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p><p>Mức độ ưu tiên: <strong>' . e(ticket_priority_label($priorityResult['priority'])) . '</strong>.</p><p>SLA: phản hồi trong ' . (int)$finalSla['response'] . ' phút làm việc, xử lý trong ' . (int)($finalSla['resolution'] / 60) . ' giờ làm việc.</p><p>Thời gian chỉ tính trong giờ làm việc: Thứ Hai–Thứ Sáu 8:00–17:30, Thứ Bảy 8:00–12:00.</p><p>Hãy lưu mã này để tra cứu trạng thái.</p><a class="button" href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a></div>';
+    echo '<div class="alert success">'
+        . '<h2>Gửi yêu cầu thành công</h2>'
+        . '<p>Mã ticket của bạn: <strong class="ticket-code">' . e($successCode) . '</strong></p>'
+        . '<p>Mức độ ưu tiên: <strong>' . e(ticket_priority_label($priorityResult['priority'])) . '</strong></p>'
+        . '<p>Cam kết xử lý (SLA): phản hồi trong vòng <strong>' . (int)$finalSla['response'] . ' phút</strong> và hoàn tất xử lý trong vòng <strong>' . (int)($finalSla['resolution'] / 60) . ' giờ</strong> làm việc.</p>'
+        . '<p>Thời gian SLA chỉ được tính trong giờ hành chính: Thứ Hai – Thứ Sáu, 8:00 – 12:00 và 13:30 – 17:30; Thứ Bảy, 8:00 – 12:00.</p>'
+        . '<p>Vui lòng lưu lại mã ticket để tra cứu tình trạng xử lý.</p>'
+        . '<a class="button" href="' . e(app_path('/track.php')) . '">Tra cứu ticket</a>'
+        . '</div>';
 } else {
     foreach ($errors as $error) {
         echo '<div class="alert error">' . e($error) . '</div>';
